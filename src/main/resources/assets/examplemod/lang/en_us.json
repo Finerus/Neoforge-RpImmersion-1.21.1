@@ -1,5 +1,8 @@
 {
-  "itemGroup.examplemod": "Example Mod Tab",
-  "block.examplemod.example_block": "Example Block",
-  "item.examplemod.example_item": "Example Item"
+  "commands.rpimmersion.fog.unknown_preset": "Unknown preset '%s'. Use /rpimmersion fog list.",
+  "commands.rpimmersion.fog.global_set": "Global fog set to '%s'.",
+  "commands.rpimmersion.fog.global_cleared": "Global fog override cleared.",
+  "commands.rpimmersion.fog.player_set": "Fog for %s set to '%s'.",
+  "commands.rpimmersion.fog.player_cleared": "Fog override cleared for %s.",
+  "commands.rpimmersion.fog.reloaded": "Fog config reloaded and synced."
 }

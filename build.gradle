@@ -10,20 +10,28 @@ tasks.named('wrapper', Wrapper).configure {
 }
 
 version = mod_version
-group = mod_group_id
+group   = mod_group_id
 
 base {
     archivesName = mod_id
 }
 
-// NeoForge 1.21.1 requires Java 21
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url 'https://maven.neoforged.net/releases' }
+    maven { url "https://maven.txni.dev/releases" }
+    maven { url "https://maven.su5ed.dev/releases" }
+    maven { url "https://api.modrinth.com/maven" }
+}
 
 neoForge {
     version = project.neo_version
 
     parchment {
-        mappingsVersion = project.parchment_mappings_version
+        mappingsVersion  = project.parchment_mappings_version
         minecraftVersion = project.parchment_minecraft_version
     }
 
@@ -32,7 +40,6 @@ neoForge {
             client()
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
-
         server {
             server()
             programArgument '--nogui'
@@ -52,7 +59,25 @@ sourceSets.main.resources {
     exclude("**/*.bbmodel")
 }
 
-// This block fixes your error by replacing ${mod_id} with 'rpimmersion' during build
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    // ImmersiveMessages — optional client (compileOnly = ne crash pas si absent en runtime)
+    compileOnly("toni.immersivemessages:neoforge-1.21.1:1.0.18") { transitive = false }
+
+    // TxniLib — requis par ImmersiveMessages côté client
+    compileOnly "maven.modrinth:txnilib:neoforge-1.21.1-1.0.24"
+
+    // Compile : rpimmersion voit les classes de rpessentials
+    compileOnly "net.rpessentials:rpessentials:${rpessentials_version}"
+
+    // Runtime dev : rpessentials est chargé quand tu lances le jeu via Gradle
+    // Sans ça → ClassNotFoundException au démarrage
+    localRuntime "net.rpessentials:rpessentials:${rpessentials_version}"
+}
+
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
             minecraft_version      : minecraft_version,

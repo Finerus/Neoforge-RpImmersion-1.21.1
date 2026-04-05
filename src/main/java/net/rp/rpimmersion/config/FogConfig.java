@@ -18,13 +18,29 @@ public class FogConfig {
     // =========================================================================
     // GLOBAL FOG
     // =========================================================================
-    public static final ModConfigSpec.BooleanValue GLOBAL_FOG_ENABLED;
+    public static final ModConfigSpec.BooleanValue  GLOBAL_FOG_ENABLED;
     public static final ModConfigSpec.ConfigValue<String> GLOBAL_FOG_PRESET;
+    public static final ModConfigSpec.ConfigValue<String> GLOBAL_FOG_DAY_PRESET;
+    public static final ModConfigSpec.ConfigValue<String> GLOBAL_FOG_NIGHT_PRESET;
+    public static final ModConfigSpec.BooleanValue  ZONE_PRIORITY_OVER_GLOBAL;
 
     // =========================================================================
-    // PRIORITY
+    // WORLD BORDER FOG
     // =========================================================================
-    public static final ModConfigSpec.BooleanValue ZONE_PRIORITY_OVER_GLOBAL;
+    public static final ModConfigSpec.BooleanValue  WORLD_BORDER_FOG_ENABLED;
+    public static final ModConfigSpec.ConfigValue<String> WORLD_BORDER_FOG_PRESET;
+    /** Priority of world border fog. Usually very high to override everything. */
+    public static final ModConfigSpec.IntValue      WORLD_BORDER_FOG_PRIORITY;
+
+    // =========================================================================
+    // DAY/NIGHT THRESHOLDS
+    // =========================================================================
+    /** Minecraft day time (0-24000) at which "day" starts. Default: 1000 (sunrise). */
+    public static final ModConfigSpec.IntValue DAY_START_TICK;
+    /** Minecraft day time at which "night" starts. Default: 13000 (sunset). */
+    public static final ModConfigSpec.IntValue NIGHT_START_TICK;
+    /** Transition duration (seconds) for day/night fog changes. */
+    public static final ModConfigSpec.DoubleValue DAY_NIGHT_TRANSITION_SECONDS;
 
     // =========================================================================
     // PRESETS
@@ -33,53 +49,93 @@ public class FogConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends String>> FOG_PRESETS;
 
     // =========================================================================
-    // ZONES RPIMMERSION (cercles custom)
-    // Format : zoneName;centerX;centerZ;radius;presetName;priority
+    // ZONES
+    // Format : zoneName;centerX;centerZ;radius;presetName;priority[;dayPreset;nightPreset]
     // =========================================================================
     public static final ModConfigSpec.ConfigValue<List<? extends String>> FOG_ZONES;
 
     // =========================================================================
     // BIOMES
-    // Format : biomeId;presetName;priority
-    // Supports wildcards : minecraft:* ou *:dark_*
+    // Format : biomeId;presetName;priority[;dayPreset;nightPreset]
+    // Wildcards supportés : minecraft:* ou *:dark_*
     // =========================================================================
     public static final ModConfigSpec.ConfigValue<List<? extends String>> FOG_BIOMES;
 
     // =========================================================================
-    // OVERRIDES RPESSENTIALS
-    // Format : rpEssentialsZoneName;presetName;priority
+    // RPESSENTIALS ZONE OVERRIDES
+    // Format : rpEssentialsZoneName;presetName;priority[;dayPreset;nightPreset]
     // =========================================================================
     public static final ModConfigSpec.ConfigValue<List<? extends String>> RPESSENTIALS_ZONE_OVERRIDES;
+
+    // =========================================================================
+    // OPTIMIZATION
+    // =========================================================================
+    /** Interval in ticks between zone/biome checks per player. Default 60 = 3s. */
+    public static final ModConfigSpec.IntValue ZONE_CHECK_INTERVAL_TICKS;
 
     // =========================================================================
     // STATIC INIT
     // =========================================================================
     static {
         BUILDER.push("Fog System");
-
         ENABLE_FOG_SYSTEM = BUILDER
                 .comment("Master switch for the RPImmersion fog system.")
                 .define("enableFogSystem", true);
-
         BUILDER.pop();
 
         // ── Global Fog ────────────────────────────────────────────────────────
         BUILDER.push("Global Fog");
 
         GLOBAL_FOG_ENABLED = BUILDER
-                .comment("If true, applies the global fog preset to all players",
-                        "(unless overridden by a zone or biome).")
+                .comment("Apply a fog preset to all players (unless overridden by zone/biome).")
                 .define("globalFogEnabled", false);
-
         GLOBAL_FOG_PRESET = BUILDER
-                .comment("Name of the fog preset to apply globally.",
-                        "Must match a preset name defined in [Fog Presets].")
+                .comment("Fog preset applied globally at all times if no day/night preset is set.")
                 .define("globalFogPreset", "");
+        GLOBAL_FOG_DAY_PRESET = BUILDER
+                .comment("Fog preset for daytime globally. Overrides globalFogPreset during day.",
+                        "Leave empty to use globalFogPreset for both day and night.")
+                .define("globalFogDayPreset", "");
+        GLOBAL_FOG_NIGHT_PRESET = BUILDER
+                .comment("Fog preset for nighttime globally. Overrides globalFogPreset during night.")
+                .define("globalFogNightPreset", "");
 
         ZONE_PRIORITY_OVER_GLOBAL = BUILDER
-                .comment("If true, zone/biome fog always overrides the global fog.",
-                        "If false, global wins over zones and biomes.")
+                .comment("If true: zone/biome fog beats global. If false: global wins.")
                 .define("zonePriorityOverGlobal", true);
+
+        BUILDER.pop();
+
+        // ── World Border Fog ──────────────────────────────────────────────────
+        BUILDER.push("World Border Fog");
+
+        WORLD_BORDER_FOG_ENABLED = BUILDER
+                .comment("Apply a special fog preset when a player is outside the world border.")
+                .define("worldBorderFogEnabled", true);
+        WORLD_BORDER_FOG_PRESET = BUILDER
+                .comment("Fog preset applied outside the world border.")
+                .define("worldBorderFogPreset", "border_void");
+        WORLD_BORDER_FOG_PRIORITY = BUILDER
+                .comment("Priority of the world border fog. Higher than all zones by default.")
+                .defineInRange("worldBorderFogPriority", 9999, 0, Integer.MAX_VALUE);
+
+        BUILDER.pop();
+
+        // ── Day/Night ─────────────────────────────────────────────────────────
+        BUILDER.push("Day Night Cycle");
+
+        DAY_START_TICK = BUILDER
+                .comment("Minecraft day time tick (0-24000) at which DAY begins.",
+                        "Default 1000 = just after sunrise.")
+                .defineInRange("dayStartTick", 1000, 0, 24000);
+        NIGHT_START_TICK = BUILDER
+                .comment("Minecraft day time tick at which NIGHT begins.",
+                        "Default 13000 = around sunset.")
+                .defineInRange("nightStartTick", 13000, 0, 24000);
+        DAY_NIGHT_TRANSITION_SECONDS = BUILDER
+                .comment("Duration (seconds) of the fog transition when day/night changes.",
+                        "Set to 0 for instant switch.")
+                .defineInRange("dayNightTransitionSeconds", 30.0, 0.0, 300.0);
 
         BUILDER.pop();
 
@@ -88,15 +144,10 @@ public class FogConfig {
 
         FOG_PRESETS = BUILDER
                 .comment(
-                        "Named fog presets referenced by zones, biomes and commands.",
-                        "Format : name;red;green;blue;start;end;transitionSeconds",
-                        "  name              : identifier (used in zones/biomes/commands)",
-                        "  red/green/blue    : fog color, range 0.0 - 1.0",
-                        "  start             : distance (blocks) where fog begins",
-                        "  end               : distance (blocks) where fog is fully opaque",
-                        "  transitionSeconds : smooth fade duration when switching presets",
-                        "",
-                        "Example: night_fog;0.05;0.05;0.1;5.0;30.0;3.0"
+                        "Named fog presets. Format : name;red;green;blue;start;end;transitionSeconds",
+                        "  red/green/blue : fog color, 0.0 - 1.0",
+                        "  start/end      : fog distance in blocks",
+                        "  transition     : fade duration in seconds when this preset activates"
                 )
                 .defineList("presets",
                         Arrays.asList(
@@ -104,7 +155,8 @@ public class FogConfig {
                                 "morning_mist;0.7;0.75;0.8;2.0;20.0;5.0",
                                 "cursed_forest;0.1;0.05;0.0;3.0;15.0;4.0",
                                 "purge;0.3;0.0;0.0;1.0;10.0;2.0",
-                                "thick_swamp;0.2;0.25;0.15;1.0;12.0;6.0"
+                                "thick_swamp;0.2;0.25;0.15;1.0;12.0;6.0",
+                                "border_void;0.0;0.0;0.0;1.0;8.0;2.0"
                         ),
                         obj -> obj instanceof String s && s.split(";").length >= 7
                 );
@@ -116,29 +168,21 @@ public class FogConfig {
 
         FOG_ZONES = BUILDER
                 .comment(
-                        "Circular fog zones defined directly in RPImmersion.",
-                        "Format : zoneName;centerX;centerZ;radius;presetName;priority",
-                        "  priority : integer — higher = wins over lower priority zones.",
-                        "             Zone always beats biome at equal priority.",
-                        "",
-                        "Example: dark_forest_zone;100;-200;80;cursed_forest;10"
+                        "Circular fog zones. Format : zoneName;centerX;centerZ;radius;presetName;priority[;dayPreset;nightPreset]",
+                        "  priority   : higher = overrides lower priority zones",
+                        "  dayPreset  : optional — overrides presetName during day",
+                        "  nightPreset: optional — overrides presetName during night",
+                        "Example: dark_forest;100;-200;80;cursed_forest;10;morning_mist;night_fog"
                 )
-                .defineList("zones",
-                        List.of(),
-                        obj -> obj instanceof String s && s.split(";").length >= 5
-                );
+                .defineList("zones", List.of(),
+                        obj -> obj instanceof String s && s.split(";").length >= 5);
 
         RPESSENTIALS_ZONE_OVERRIDES = BUILDER
                 .comment(
-                        "Apply a fog preset to zones already defined in RpEssentials (namedZones).",
-                        "Format : rpEssentialsZoneName;presetName;priority",
-                        "",
-                        "Example: taverne;morning_mist;5"
+                        "Apply fog to RpEssentials named zones. Format : zoneName;presetName;priority[;dayPreset;nightPreset]"
                 )
-                .defineList("rpEssentialsZoneOverrides",
-                        List.of(),
-                        obj -> obj instanceof String s && s.split(";").length >= 3
-                );
+                .defineList("rpEssentialsZoneOverrides", List.of(),
+                        obj -> obj instanceof String s && s.split(";").length >= 3);
 
         BUILDER.pop();
 
@@ -147,24 +191,27 @@ public class FogConfig {
 
         FOG_BIOMES = BUILDER
                 .comment(
-                        "Apply a fog preset based on the biome the player is standing in.",
-                        "Format : biomeId;presetName;priority",
-                        "  biomeId  : Minecraft resource location (e.g. minecraft:dark_forest)",
-                        "             Supports wildcards: minecraft:* or *:dark_*",
-                        "  priority : integer — higher = wins. Zones win over biomes at equal priority.",
-                        "",
-                        "Examples:",
-                        "  minecraft:dark_forest;cursed_forest;5",
-                        "  minecraft:swamp;thick_swamp;3",
-                        "  minecraft:*_forest;morning_mist;1"
+                        "Biome-based fog. Format : biomeId;presetName;priority[;dayPreset;nightPreset]",
+                        "  Wildcards: minecraft:* or *:dark_*",
+                        "Example: minecraft:dark_forest;cursed_forest;5;morning_mist;night_fog"
                 )
                 .defineList("biomes",
                         Arrays.asList(
                                 "minecraft:dark_forest;cursed_forest;5",
                                 "minecraft:swamp;thick_swamp;3"
                         ),
-                        obj -> obj instanceof String s && s.split(";").length >= 3
-                );
+                        obj -> obj instanceof String s && s.split(";").length >= 3);
+
+        BUILDER.pop();
+
+        // ── Optimization ──────────────────────────────────────────────────────
+        BUILDER.push("Optimization");
+
+        ZONE_CHECK_INTERVAL_TICKS = BUILDER
+                .comment("How often (in ticks) the server checks each player's zone/biome.",
+                        "Lower = more responsive, higher = better performance.",
+                        "Default: 60 (3 seconds). Minimum: 20 (1 second).")
+                .defineInRange("zoneCheckIntervalTicks", 60, 20, 1200);
 
         BUILDER.pop();
 
@@ -172,81 +219,55 @@ public class FogConfig {
     }
 
     // =========================================================================
-    // PARSED RECORD TYPES
+    // PARSED RECORDS
     // =========================================================================
 
-    public record FogPreset(
-            String name,
-            float red, float green, float blue,
-            float start, float end,
-            float transitionSeconds
-    ) {
+    public record FogPreset(String name,
+                            float red, float green, float blue,
+                            float start, float end, float transitionSeconds) {
         public static FogPreset parse(String raw) {
             String[] p = raw.split(";");
-            return new FogPreset(
-                    p[0].trim(),
-                    Float.parseFloat(p[1].trim()),
-                    Float.parseFloat(p[2].trim()),
-                    Float.parseFloat(p[3].trim()),
-                    Float.parseFloat(p[4].trim()),
-                    Float.parseFloat(p[5].trim()),
-                    Float.parseFloat(p[6].trim())
-            );
+            return new FogPreset(p[0].trim(),
+                    Float.parseFloat(p[1].trim()), Float.parseFloat(p[2].trim()), Float.parseFloat(p[3].trim()),
+                    Float.parseFloat(p[4].trim()), Float.parseFloat(p[5].trim()), Float.parseFloat(p[6].trim()));
         }
     }
 
-    public record FogZone(
-            String name,
-            double centerX, double centerZ,
-            double radius,
-            String presetName,
-            int priority
-    ) {
+    public record FogZone(String name, double centerX, double centerZ, double radius,
+                          String presetName, int priority,
+                          String dayPreset, String nightPreset) {
         public static FogZone parse(String raw) {
             String[] p = raw.split(";");
-            int prio = p.length >= 6 ? Integer.parseInt(p[5].trim()) : 0;
-            return new FogZone(
-                    p[0].trim(),
-                    Double.parseDouble(p[1].trim()),
-                    Double.parseDouble(p[2].trim()),
+            return new FogZone(p[0].trim(),
+                    Double.parseDouble(p[1].trim()), Double.parseDouble(p[2].trim()),
                     Double.parseDouble(p[3].trim()),
-                    p[4].trim(),
-                    prio
-            );
+                    p[4].trim(), p.length >= 6 ? Integer.parseInt(p[5].trim()) : 0,
+                    p.length >= 7 ? p[6].trim() : "",
+                    p.length >= 8 ? p[7].trim() : "");
         }
-
         public boolean contains(double x, double z) {
-            double dx = x - centerX;
-            double dz = z - centerZ;
+            double dx = x - centerX, dz = z - centerZ;
             return dx * dx + dz * dz <= radius * radius;
         }
     }
 
-    public record FogBiome(
-            String biomePattern,
-            String presetName,
-            int priority
-    ) {
+    public record FogBiome(String biomePattern, String presetName, int priority,
+                           String dayPreset, String nightPreset) {
         public static FogBiome parse(String raw) {
             String[] p = raw.split(";");
-            return new FogBiome(
-                    p[0].trim(), p[1].trim(),
-                    Integer.parseInt(p[2].trim())
-            );
+            return new FogBiome(p[0].trim(), p[1].trim(), Integer.parseInt(p[2].trim()),
+                    p.length >= 4 ? p[3].trim() : "",
+                    p.length >= 5 ? p[4].trim() : "");
         }
     }
 
-    public record RpEssentialsZoneOverride(
-            String zoneName,
-            String presetName,
-            int priority
-    ) {
+    public record RpEssentialsZoneOverride(String zoneName, String presetName, int priority,
+                                           String dayPreset, String nightPreset) {
         public static RpEssentialsZoneOverride parse(String raw) {
             String[] p = raw.split(";");
-            return new RpEssentialsZoneOverride(
-                    p[0].trim(), p[1].trim(),
-                    Integer.parseInt(p[2].trim())
-            );
+            return new RpEssentialsZoneOverride(p[0].trim(), p[1].trim(), Integer.parseInt(p[2].trim()),
+                    p.length >= 4 ? p[3].trim() : "",
+                    p.length >= 5 ? p[4].trim() : "");
         }
     }
 }

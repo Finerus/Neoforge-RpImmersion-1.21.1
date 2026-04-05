@@ -3,72 +3,136 @@ package net.rp.rpimmersion.client.fog;
 /**
  * Cache côté client de l'état fog reçu du serveur.
  *
- * BUG FIX : L'ancienne implémentation utilisait currentRed comme source de lerp
- * ET la modifiait chaque frame → approche exponentielle, pas de vraie transition.
- * Fix : stocker fromRed/Green/Blue/Start/End comme point de départ FIXE.
+ * Transitions :
+ *  - vanilla → preset  : lerp depuis les valeurs vanilla sampées en temps réel
+ *  - preset  → preset  : lerp depuis les valeurs interpolées courantes
+ *  - preset  → vanilla : lerp vers les valeurs vanilla (clearPending), puis active=false
+ *
+ * Chunk culling (Sodium/Embeddium) :
+ *  FogEventHandler ne réduit jamais farPlaneDistance en dessous du vanilla.
+ *  Les valeurs vanilla sont stockées ici pour que le calcul se fasse correctement.
+ *
+ * Shaders (Iris/Oculus) :
+ *  ViewportEvent ne touche pas le pipeline GLSL des shaders. Le fog serveur
+ *  n'est donc pas appliqué quand un shader pack est actif — limitation connue.
  */
 public class ClientFogCache {
 
+    // ── État machine ──────────────────────────────────────────────────────────
     private static boolean active       = false;
-    private static boolean clearPending = false;
+    private static boolean clearPending = false; // transition vers vanilla en cours
 
-    // Point de départ FIXE (ne change pas pendant la transition)
+    // ── Transition ────────────────────────────────────────────────────────────
     private static float fromRed, fromGreen, fromBlue;
     private static float fromStart, fromEnd;
 
-    // Valeurs cibles reçues du serveur
     private static float targetRed, targetGreen, targetBlue;
     private static float targetStart, targetEnd;
 
-    // Valeurs interpolées lues par FogEventHandler
+    private static float transitionProgress      = 1.0f;
+    private static float transitionDurationMs    = 0f;
+    private static float lastTransitionDurationMs = 2000f; // réutilisé pour la sortie
+    private static long  lastTickMs              = -1;
+
+    // ── Valeurs interpolées (lues par FogEventHandler) ────────────────────────
+    // Quand active=false : mis à jour par sampleVanilla*() → toujours frais
+    // Quand active=true  : mis à jour par tick() → interpolation courante
     private static float currentRed, currentGreen, currentBlue;
     private static float currentStart, currentEnd;
 
-    private static float transitionProgress   = 1.0f;
-    private static float transitionDurationMs = 1000f;
-    private static long  lastTickMs           = -1;
+    // ── Valeurs vanilla brutes (sampées chaque frame par FogEventHandler) ─────
+    private static float vanillaRed, vanillaGreen, vanillaBlue;
+    private static float vanillaStart, vanillaEnd;
+
+    // =========================================================================
+    // SAMPLING VANILLA — appelé CHAQUE FRAME par FogEventHandler (avant override)
+    // =========================================================================
+
+    /** Capture la couleur fog vanilla du frame courant. */
+    public static void sampleVanillaColor(float r, float g, float b) {
+        vanillaRed   = r;
+        vanillaGreen = g;
+        vanillaBlue  = b;
+        // Quand aucun preset n'est actif, current* suit le vanilla en temps réel
+        if (!active && !clearPending) {
+            currentRed   = r;
+            currentGreen = g;
+            currentBlue  = b;
+        }
+    }
+
+    /** Capture les distances fog vanilla du frame courant. */
+    public static void sampleVanillaDistances(float start, float end) {
+        vanillaStart = start;
+        vanillaEnd   = end;
+        if (!active && !clearPending) {
+            currentStart = start;
+            currentEnd   = end;
+        }
+    }
 
     // =========================================================================
     // API PUBLIQUE
     // =========================================================================
 
+    /**
+     * Déclenche une transition vers un nouveau preset.
+     * current* contient toujours la valeur visuelle courante (vanilla ou preset),
+     * donc le lerp part du bon endroit quelle que soit la situation.
+     */
     public static void setTargetFog(float r, float g, float b,
                                     float start, float end,
                                     float transitionSeconds) {
         fromRed   = currentRed;   fromGreen = currentGreen; fromBlue  = currentBlue;
         fromStart = currentStart; fromEnd   = currentEnd;
 
-        targetRed   = r;   targetGreen = g;   targetBlue  = b;
-        targetStart = start; targetEnd = end;
+        targetRed   = r;     targetGreen = g;     targetBlue  = b;
+        targetStart = start; targetEnd   = end;
 
-        transitionDurationMs = Math.max(0f, transitionSeconds * 1000f);
-        transitionProgress   = 0f;
-        lastTickMs           = System.currentTimeMillis();
-        active               = true;
-        clearPending         = false;
+        transitionDurationMs     = Math.max(0f, transitionSeconds * 1000f);
+        lastTransitionDurationMs = transitionDurationMs; // mémorisé pour la sortie
+        transitionProgress       = 0f;
+        lastTickMs               = System.currentTimeMillis();
+        active                   = true;
+        clearPending             = false;
     }
 
+    /**
+     * Déclenche une transition de retour vers vanilla.
+     * Reste actif (shouldApply=true) pendant la transition, puis vanilla reprend.
+     */
     public static void clearFog() {
-        if (!active && !clearPending) return;
+        if (!active || clearPending) return;
+
         fromRed   = currentRed;   fromGreen = currentGreen; fromBlue  = currentBlue;
         fromStart = currentStart; fromEnd   = currentEnd;
-        targetRed = 0; targetGreen = 0; targetBlue = 0;
-        targetStart = 0; targetEnd = 0;
-        transitionProgress = 0f;
-        lastTickMs         = System.currentTimeMillis();
-        clearPending       = true;
+
+        // Cible = valeurs vanilla du dernier frame sampé
+        targetRed   = vanillaRed;   targetGreen = vanillaGreen; targetBlue  = vanillaBlue;
+        targetStart = vanillaStart; targetEnd   = vanillaEnd;
+
+        transitionDurationMs = lastTransitionDurationMs;
+        transitionProgress   = 0f;
+        lastTickMs           = System.currentTimeMillis();
+        clearPending         = true;
+        // active reste true → FogEventHandler continue d'appliquer le fog pendant la transition
     }
 
     public static void reset() {
-        active = false; clearPending = false;
-        fromRed = fromGreen = fromBlue = 0f;
-        fromStart = fromEnd = 0f;
+        active       = false;
+        clearPending = false;
+        fromRed   = fromGreen   = fromBlue   = 0f;
+        fromStart = fromEnd                  = 0f;
         targetRed = targetGreen = targetBlue = 0f;
-        targetStart = targetEnd = 0f;
+        targetStart = targetEnd              = 0f;
         currentRed = currentGreen = currentBlue = 0f;
-        currentStart = currentEnd = 0f;
-        transitionProgress = 1.0f;
-        lastTickMs = -1;
+        currentStart = currentEnd               = 0f;
+        vanillaRed = vanillaGreen = vanillaBlue = 0f;
+        vanillaStart = vanillaEnd               = 0f;
+        transitionProgress       = 1.0f;
+        transitionDurationMs     = 0f;
+        lastTransitionDurationMs = 2000f;
+        lastTickMs               = -1;
     }
 
     // =========================================================================
@@ -78,7 +142,11 @@ public class ClientFogCache {
     public static void tick() {
         if (!active && !clearPending) return;
         if (transitionProgress >= 1.0f) {
-            if (clearPending) { clearPending = false; active = false; }
+            if (clearPending) {
+                // Transition de sortie terminée → vanilla reprend
+                active       = false;
+                clearPending = false;
+            }
             return;
         }
 
@@ -91,7 +159,7 @@ public class ClientFogCache {
                 ? 1.0f
                 : Math.min(1.0f, transitionProgress + elapsed / transitionDurationMs);
 
-        float t = easeInOut(transitionProgress);
+        float t      = easeInOut(transitionProgress);
         currentRed   = lerp(fromRed,   targetRed,   t);
         currentGreen = lerp(fromGreen, targetGreen, t);
         currentBlue  = lerp(fromBlue,  targetBlue,  t);
@@ -103,12 +171,13 @@ public class ClientFogCache {
     // GETTERS
     // =========================================================================
 
-    public static boolean isActive()      { return active || clearPending; }
-    public static float getCurrentRed()   { return currentRed; }
-    public static float getCurrentGreen() { return currentGreen; }
-    public static float getCurrentBlue()  { return currentBlue; }
-    public static float getCurrentStart() { return currentStart; }
-    public static float getCurrentEnd()   { return currentEnd; }
+    public static boolean isActive()        { return active || clearPending; }
+    public static float getCurrentRed()     { return currentRed; }
+    public static float getCurrentGreen()   { return currentGreen; }
+    public static float getCurrentBlue()    { return currentBlue; }
+    public static float getCurrentStart()   { return currentStart; }
+    public static float getCurrentEnd()     { return currentEnd; }
+    public static float getVanillaEnd()     { return vanillaEnd; }
 
     private static float lerp(float a, float b, float t) { return a + (b - a) * t; }
     private static float easeInOut(float t) {

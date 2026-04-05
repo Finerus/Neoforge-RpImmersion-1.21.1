@@ -136,6 +136,9 @@ public class FogManager {
             if (rpe != null) return rpe;
             FogSyncPacket biome = resolveBiome(player, isDaytime);
             if (biome != null) return biome;
+            String weatherPreset = net.rp.rpimmersion.weather.WeatherManager.get().getCurrentWeatherFogPreset();
+            if (weatherPreset != null && presets.containsKey(weatherPreset))
+                return buildPacket(weatherPreset);
         }
 
         return FogSyncPacket.inactive();

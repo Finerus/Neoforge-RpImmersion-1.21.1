@@ -13,6 +13,12 @@ import net.rp.rpimmersion.client.hud.CalendarHudCache;
 public class ClientEventHandler {
 
     @SubscribeEvent
+    public static void onClientTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        ClientFogCache.tick();
+        CalendarHudCache.clientTick();
+    }
+
+    @SubscribeEvent
     public static void onDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientFogCache.reset();
         CameraShakeHandler.reset();

@@ -9,22 +9,38 @@ import net.rp.rpimmersion.client.ClientPermissions;
 import net.rp.rpimmersion.config.ClientImmersionConfig;
 
 /**
- * Applique le fog serveur côté client.
+ * Applique le fog serveur côté client via ViewportEvent.
  *
  * COMPATIBILITÉ :
- * - Sodium/Embeddium : NeoForge ViewportEvent fired avant leur pipeline.
- * - Optifine/Oculus  : idem.
- * - On SET uniquement si ClientFogCache.isActive() pour ne pas interférer
- *   avec le fog vanilla ou d'autres mods quand on n'a pas de preset.
+ *
+ *  Vanilla / Embeddium / Sodium sans shaders :
+ *    Fonctionne correctement. ViewportEvent est fired avant le pipeline de rendu.
+ *    Fix chunk culling : farPlaneDistance n'est jamais réduit sous la valeur vanilla
+ *    pour éviter que Sodium/Embeddium ne culling les chunks trop tôt.
+ *
+ *  Shaders (Iris / Oculus) :
+ *    ViewportEvent ne touche PAS le pipeline GLSL. Le fog est calculé en shader,
+ *    ce qui court-circuite nos overrides de couleur et de distance.
+ *    Une intégration propre nécessiterait l'Iris API (uniforms custom), hors scope.
+ *    En attendant, quand un shader est actif, les valeurs vanilla sont quand même
+ *    sampées correctement pour que les transitions fonctionnent dès que le shader
+ *    est désactivé.
  */
 @EventBusSubscriber(modid = RpImmersion.MODID, value = Dist.CLIENT)
 public class FogEventHandler {
 
     @SubscribeEvent
     public static void onFogColor(ViewportEvent.ComputeFogColor event) {
+        // Toujours sampler les valeurs vanilla EN PREMIER, avant tout override.
+        // Utilisé comme point de départ pour les transitions vanilla→preset et preset→vanilla.
+        ClientFogCache.sampleVanillaColor(
+                (float) event.getRed(),
+                (float) event.getGreen(),
+                (float) event.getBlue()
+        );
+
         if (!shouldApply()) return;
 
-        // OVERRIDE de la couleur du fog
         event.setRed(ClientFogCache.getCurrentRed());
         event.setGreen(ClientFogCache.getCurrentGreen());
         event.setBlue(ClientFogCache.getCurrentBlue());
@@ -32,17 +48,22 @@ public class FogEventHandler {
 
     @SubscribeEvent
     public static void onFogRender(ViewportEvent.RenderFog event) {
-        if (!shouldApply()) return;
+        if (!shouldApply()) {
+            // Capture les distances vanilla
+            ClientFogCache.sampleVanillaDistances(
+                    event.getNearPlaneDistance(),
+                    event.getFarPlaneDistance()
+            );
+            return;
+        }
 
-        // OVERRIDE des distances du fog
         event.setNearPlaneDistance(ClientFogCache.getCurrentStart());
         event.setFarPlaneDistance(ClientFogCache.getCurrentEnd());
-        event.setCanceled(true); // Empêche le fog vanilla de s'appliquer par-dessus
+        event.setCanceled(true);
     }
 
     private static boolean shouldApply() {
         if (!ClientFogCache.isActive()) return false;
-        // Vérifier si le client a désactivé le fog serveur (override autorisé)
         if (ClientPermissions.canOverrideFog()) {
             try {
                 if (ClientImmersionConfig.DISABLE_SERVER_FOG.get()) return false;

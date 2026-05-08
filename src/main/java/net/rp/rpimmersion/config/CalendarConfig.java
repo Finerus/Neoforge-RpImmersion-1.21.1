@@ -14,6 +14,9 @@ public class CalendarConfig {
     // GENERAL
     // =========================================================================
     public static final ModConfigSpec.BooleanValue ENABLE_CALENDAR;
+    public static final ModConfigSpec.BooleanValue PAUSE_WHEN_SERVER_CLOSED;
+    public static final ModConfigSpec.BooleanValue SYNC_DAYLIGHT_CYCLE;
+    public static final ModConfigSpec.BooleanValue MINECRAFT_DAY_SYNC;
 
     // =========================================================================
     // TIME RATIO
@@ -63,6 +66,26 @@ public class CalendarConfig {
                 .comment("Enable the RPImmersion RP calendar.")
                 .define("enableCalendar", true);
 
+        PAUSE_WHEN_SERVER_CLOSED = BUILDER
+                .comment("If true, the calendar automatically pauses when the server schedule (RpEssentials) is closed.",
+                        "Resumes automatically when the server opens again.",
+                        "Has no effect if RpEssentials is not present.")
+                .define("pauseWhenServerClosed", true);
+
+        SYNC_DAYLIGHT_CYCLE = BUILDER
+                .comment("If true, the doDaylightCycle gamerule is automatically set to false when the calendar",
+                        "is paused (manually or by schedule), and restored to true when it resumes.")
+                .define("syncDaylightCycle", true);
+
+        MINECRAFT_DAY_SYNC = BUILDER
+                .comment("If true, the calendar advances by one day each time a Minecraft day completes (every 24 000 ticks).",
+                        "When enabled:",
+                        "  - Tick-based counting (ticksPerRpMinute / rpMinutesPerHour) is fully disabled.",
+                        "  - doDaylightCycle is automatically managed on pause/resume, regardless of syncDaylightCycle.",
+                        "  - Pausing the calendar (manually or via schedule) freezes both the RP date and the MC day cycle.",
+                        "The hour and minute within the RP day are not driven by this mode, they remain at their last value.")
+                .define("minecraftDaySync", true);
+
         BUILDER.pop();
 
         // ── Time Ratio ────────────────────────────────────────────────────────
@@ -70,14 +93,14 @@ public class CalendarConfig {
 
         TICKS_PER_RP_MINUTE = BUILDER
                 .comment("Server ticks per RP minute.",
+                        "Default 20 × 50 min × 24 h = 24 000 ticks = 1 Minecraft day per calendar day.",
                         "1200 = 1 real minute per RP minute (1:1).",
-                        "600  = 2 RP minutes per real minute (2x speed).",
-                        "100  = 12 RP minutes per real minute.")
-                .defineInRange("ticksPerRpMinute", 1200, 1, 72000);
+                        "600  = 2 RP minutes per real minute.")
+                .defineInRange("ticksPerRpMinute", 20, 1, 72000);
 
         RP_MINUTES_PER_HOUR = BUILDER
-                .comment("RP minutes per RP hour. Default: 60.")
-                .defineInRange("rpMinutesPerHour", 60, 1, 3600);
+                .comment("RP minutes per RP hour. Default: 50 (combined with default ticksPerRpMinute gives exactly 1 MC day = 1 calendar day).")
+                .defineInRange("rpMinutesPerHour", 50, 1, 3600);
 
         RP_HOURS_PER_DAY = BUILDER
                 .comment("RP hours per RP day. Default: 24.")
@@ -91,8 +114,8 @@ public class CalendarConfig {
         MONTH_NAMES = BUILDER
                 .comment("Names of the RP months, in order. The number of entries defines the number of months.")
                 .defineList("monthNames",
-                        Arrays.asList("Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                                "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"),
+                        Arrays.asList("January", "February", "March", "April", "May", "June",
+                                "July", "August", "September", "October", "November", "December"),
                         obj -> obj instanceof String);
 
         DAYS_PER_MONTH = BUILDER
@@ -104,9 +127,9 @@ public class CalendarConfig {
 
         DAY_NAMES = BUILDER
                 .comment("Names of the days of the week (optional). Leave empty to disable week display.",
-                        "Example: [\"Lundi\", \"Mardi\", \"Mercredi\", \"Jeudi\", \"Vendredi\", \"Samedi\", \"Dimanche\"]")
+                        "Example: [\"Monday\", \"Tuesday\", \"Wednesday\", \"Thursday\", \"Friday\", \"Saturday\", \"Sunday\"]")
                 .defineList("dayNames",
-                        Arrays.asList("Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"),
+                        Arrays.asList("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"),
                         obj -> obj instanceof String);
 
         BUILDER.pop();
@@ -117,7 +140,7 @@ public class CalendarConfig {
         START_YEAR  = BUILDER.comment("Starting year of the RP calendar.").defineInRange("startYear",  1, 0, Integer.MAX_VALUE);
         START_MONTH = BUILDER.comment("Starting month (1-based).").defineInRange("startMonth", 1, 1, 100);
         START_DAY   = BUILDER.comment("Starting day (1-based).").defineInRange("startDay",   1, 1, 365);
-        START_HOUR  = BUILDER.comment("Starting hour (0-23).").defineInRange("startHour",  8, 0, 99);
+        START_HOUR  = BUILDER.comment("Starting hour (0-23).").defineInRange("startHour",  6, 0, 99);
 
         BUILDER.pop();
 
@@ -140,7 +163,7 @@ public class CalendarConfig {
 
         PAUSED_SUFFIX = BUILDER
                 .comment("Suffix appended to the date display when the calendar is paused.")
-                .define("pausedSuffix", " §8(en pause)");
+                .define("pausedSuffix", " §8(paused)");
 
         BUILDER.pop();
 

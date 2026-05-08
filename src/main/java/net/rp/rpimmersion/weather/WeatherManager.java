@@ -47,6 +47,8 @@ public class WeatherManager {
 
     // Fog météo override — appliqué SEULEMENT si aucun autre fog n'est actif
     private String currentWeatherFogPreset = null;
+    private final List<WeatherConfig.RainEffect> rainEffects    = new ArrayList<>();
+    private int rainEffectTick = 0;
 
     // =========================================================================
     // RELOAD
@@ -99,6 +101,11 @@ public class WeatherManager {
 
         // Auto-cycle
         tickCycle(server, overworld);
+
+        if (++rainEffectTick >= 20) {
+            rainEffectTick = 0;
+            tickRainEffects(server, overworld, current);
+        }
 
         // Extra lightning si THUNDER et multiplier > 1.0
         if (current == WeatherConfig.WeatherType.THUNDER) {
@@ -193,16 +200,12 @@ public class WeatherManager {
     private void tickExtraLightning(MinecraftServer server, ServerLevel overworld) {
         try {
             double mult = WeatherConfig.LIGHTNING_FREQUENCY_MULTIPLIER.get();
-            if (mult <= 1.0) return; // Pas d'éclair supplémentaire
+            if (mult <= 1.0) return;
             if (!WeatherConfig.LIGHTNING_CONTROL_ENABLED.get()) return;
 
-            // Probabilité d'un éclair supplémentaire ce tick
-            // Vanilla spawn environ 1 éclair tous les ~200 ticks par chunk chargé.
-            // On simplifie : chance = (mult - 1.0) / 200
             double chance = (mult - 1.0) / 200.0;
             if (RNG.nextDouble() > chance) return;
 
-            // Choisir un joueur aléatoire
             List<ServerPlayer> players = server.getPlayerList().getPlayers();
             if (players.isEmpty()) return;
             ServerPlayer target = players.get(RNG.nextInt(players.size()));
@@ -211,13 +214,17 @@ public class WeatherManager {
             try { radius = WeatherConfig.LIGHTNING_SPAWN_RADIUS.get(); }
             catch (IllegalStateException e) { radius = 128; }
 
-            double angle  = RNG.nextDouble() * Math.PI * 2;
-            double dist   = RNG.nextDouble() * radius;
-            BlockPos bolt = BlockPos.containing(
-                    target.getX() + Math.cos(angle) * dist,
-                    target.getY(),
-                    target.getZ() + Math.sin(angle) * dist
-            );
+            double angle = RNG.nextDouble() * Math.PI * 2;
+            double dist  = RNG.nextDouble() * radius;
+            int targetX  = (int)(target.getX() + Math.cos(angle) * dist);
+            int targetZ  = (int)(target.getZ() + Math.sin(angle) * dist);
+
+            // Frappe toujours à la surface — jamais sous terre
+            int surfaceY = overworld.getHeight(
+                    net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    targetX, targetZ);
+
+            BlockPos bolt = new BlockPos(targetX, surfaceY, targetZ);
 
             net.minecraft.world.entity.LightningBolt entity =
                     net.minecraft.world.entity.EntityType.LIGHTNING_BOLT.create(overworld);
@@ -226,6 +233,42 @@ public class WeatherManager {
             overworld.addFreshEntity(entity);
 
         } catch (IllegalStateException ignored) {}
+    }
+
+    private void tickRainEffects(MinecraftServer server, ServerLevel overworld,
+                                 WeatherConfig.WeatherType currentWeather) {
+        try {
+            if (!WeatherConfig.RAIN_EFFECTS_ENABLED.get()) return;
+        } catch (IllegalStateException e) { return; }
+
+        boolean isRain    = currentWeather == WeatherConfig.WeatherType.RAIN
+                || currentWeather == WeatherConfig.WeatherType.THUNDER;
+        boolean isThunder = currentWeather == WeatherConfig.WeatherType.THUNDER;
+        if (!isRain) return;
+
+        List<? extends String> rawEffects;
+        try { rawEffects = WeatherConfig.RAIN_EFFECTS.get(); }
+        catch (IllegalStateException e) { return; }
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            for (String raw : rawEffects) {
+                WeatherConfig.RainEffect cfg;
+                try { cfg = WeatherConfig.RainEffect.parse(raw); }
+                catch (Exception e) { continue; }
+
+                if (cfg.weatherType() == WeatherConfig.WeatherType.THUNDER && !isThunder) continue;
+                if (cfg.requireSkyExposure() && !player.serverLevel().isRainingAt(player.blockPosition())) continue;
+
+                net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> holder =
+                        net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT
+                                .getHolder(net.minecraft.resources.ResourceLocation.parse(cfg.effectId()))
+                                .orElse(null);
+                if (holder == null) continue;
+
+                player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        holder, 40, cfg.amplifier(), false, false, false));
+            }
+        }
     }
 
     // =========================================================================

@@ -64,6 +64,12 @@ public class WeatherConfig {
     public static final ModConfigSpec.ConfigValue<String> WEATHER_MESSAGE_MODE;
 
     // =========================================================================
+    // RAIN EFFECT
+    // =========================================================================
+    public static final ModConfigSpec.BooleanValue  RAIN_EFFECTS_ENABLED;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> RAIN_EFFECTS;
+
+    // =========================================================================
     // STATIC INIT
     // =========================================================================
     static {
@@ -103,12 +109,12 @@ public class WeatherConfig {
 
         LIGHTNING_CONTROL_ENABLED = BUILDER
                 .comment("Enable custom lightning frequency control during thunderstorms.")
-                .define("lightningControlEnabled", true);
+                .define("lightningControlEnabled", false);
 
         LIGHTNING_FREQUENCY_MULTIPLIER = BUILDER
                 .comment("Multiplier applied to vanilla lightning spawn rate.",
                         "1.0 = vanilla, 2.0 = twice as many, 0.5 = half as many, 0.0 = none.")
-                .defineInRange("lightningFrequencyMultiplier", 1.5, 0.0, 20.0);
+                .defineInRange("lightningFrequencyMultiplier", 2, 0.0, 20.0);
 
         LIGHTNING_SPAWN_RADIUS = BUILDER
                 .comment("Radius (blocks) around each online player where extra lightning can spawn.",
@@ -193,7 +199,33 @@ public class WeatherConfig {
 
         WEATHER_MESSAGE_MODE = BUILDER
                 .comment("Display mode for weather messages: CHAT, ACTION_BAR, IMMERSIVE.")
-                .define("weatherMessageMode", "ACTION_BAR");
+                .define("weatherMessageMode", "CHAT");
+
+        BUILDER.pop();
+
+        BUILDER.push("Rain Effects");
+
+        RAIN_EFFECTS_ENABLED = BUILDER
+                .comment("Apply potion effects to players caught in rain or thunderstorms.")
+                .define("rainEffectsEnabled", true);
+
+        RAIN_EFFECTS = BUILDER
+                .comment(
+                        "Effects applied to players during weather. Format: effectId;amplifier;requireSkyExposure;weatherType",
+                        "  effectId           : Minecraft effect ID (e.g. minecraft:slowness, minecraft:mining_fatigue)",
+                        "  amplifier          : 0-based level (0 = I, 1 = II…)",
+                        "  requireSkyExposure : true = only when the player can see the open sky (not underground or under a roof)",
+                        "  weatherType        : RAIN (applies in rain and thunder) | THUNDER (thunderstorm only)",
+                        "Effects are refreshed every second. Ambient and particles are disabled for subtlety.",
+                        "Example: minecraft:slowness;0;true;RAIN"
+                )
+                .defineList("rainEffects",
+                        Arrays.asList(
+                                "minecraft:slowness;0;true;RAIN",
+                                "minecraft:mining_fatigue;0;true;THUNDER"
+                        ),
+                        obj -> obj instanceof String s && s.split(";").length == 4
+                );
 
         BUILDER.pop();
 
@@ -219,6 +251,18 @@ public class WeatherConfig {
             String msg = p.length >= 3 ? p[2].trim() : "";
             return new CycleStep(WeatherType.valueOf(p[0].trim().toUpperCase()),
                     Integer.parseInt(p[1].trim()), msg);
+        }
+    }
+
+    public record RainEffect(String effectId, int amplifier, boolean requireSkyExposure, WeatherType weatherType) {
+        public static RainEffect parse(String raw) {
+            String[] p = raw.split(";");
+            return new RainEffect(
+                    p[0].trim(),
+                    Integer.parseInt(p[1].trim()),
+                    Boolean.parseBoolean(p[2].trim()),
+                    WeatherType.valueOf(p[3].trim().toUpperCase())
+            );
         }
     }
 }

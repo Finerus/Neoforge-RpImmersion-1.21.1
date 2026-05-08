@@ -144,10 +144,22 @@ public class FogConfig {
 
         FOG_PRESETS = BUILDER
                 .comment(
-                        "Named fog presets. Format : name;red;green;blue;start;end;transitionSeconds",
+                        "Named fog presets.",
+                        "Format : name;red;green;blue;start;end;transitionSeconds[;overrides]",
                         "  red/green/blue : fog color, 0.0 - 1.0",
-                        "  start/end      : fog distance in blocks",
-                        "  transition     : fade duration in seconds when this preset activates"
+                        "  start/end      : fog distance (in block)",
+                        "  transition     : fade duration (in seconds)",
+                        "  overrides      : fog type (optional).",
+                        "                   Possible values : TERRAIN, SKY, WATER, LAVA, POWDER_SNOW, ALL",
+                        "                   TERRAIN      = distance fog (overworld, nether, end, pluie)",
+                        "                   SKY          = atmospheric fog derrière les blocs",
+                        "                   WATER        = underwater fog",
+                        "                   LAVA         = in-lava fog",
+                        "                   POWDER_SNOW  = in-snow-powder fog",
+                        "                   ALL          = all the type above",
+                        "                   Default if missing : TERRAIN",
+                        "  Full example : border_void;0;0;0;1;8;2;ALL",
+                        "  Simple example  : night_fog;0.05;0.05;0.1;5;30;3"
                 )
                 .defineList("presets",
                         Arrays.asList(
@@ -156,7 +168,7 @@ public class FogConfig {
                                 "cursed_forest;0.1;0.05;0.0;3.0;15.0;4.0",
                                 "purge;0.3;0.0;0.0;1.0;10.0;2.0",
                                 "thick_swamp;0.2;0.25;0.15;1.0;12.0;6.0",
-                                "border_void;0.0;0.0;0.0;1.0;8.0;2.0"
+                                "border_void;0.0;0.0;0.0;1.0;8.0;2.0;ALL"
                         ),
                         obj -> obj instanceof String s && s.split(";").length >= 7
                 );
@@ -224,12 +236,42 @@ public class FogConfig {
 
     public record FogPreset(String name,
                             float red, float green, float blue,
-                            float start, float end, float transitionSeconds) {
+                            float start, float end, float transitionSeconds,
+                            int overrideFlags) {
+
+        public static final int FLAG_TERRAIN     = 1;
+        public static final int FLAG_SKY         = 1 << 1;
+        public static final int FLAG_WATER       = 1 << 2;
+        public static final int FLAG_LAVA        = 1 << 3;
+        public static final int FLAG_POWDER_SNOW = 1 << 4;
+        public static final int FLAG_ALL         = FLAG_TERRAIN | FLAG_SKY | FLAG_WATER | FLAG_LAVA | FLAG_POWDER_SNOW;
+
+        public boolean overrides(int flag) { return (overrideFlags & flag) != 0; }
+
+        public static int parseFlags(String raw) {
+            if (raw == null || raw.isBlank()) return FLAG_TERRAIN;
+            int flags = 0;
+            for (String part : raw.toUpperCase().split(",")) {
+                flags |= switch (part.trim()) {
+                    case "TERRAIN"     -> FLAG_TERRAIN;
+                    case "SKY"         -> FLAG_SKY;
+                    case "WATER"       -> FLAG_WATER;
+                    case "LAVA"        -> FLAG_LAVA;
+                    case "POWDER_SNOW" -> FLAG_POWDER_SNOW;
+                    case "ALL"         -> FLAG_ALL;
+                    default            -> 0;
+                };
+            }
+            return flags == 0 ? FLAG_TERRAIN : flags;
+        }
+
         public static FogPreset parse(String raw) {
             String[] p = raw.split(";");
+            int flags = p.length >= 8 ? parseFlags(p[7].trim()) : FLAG_TERRAIN;
             return new FogPreset(p[0].trim(),
                     Float.parseFloat(p[1].trim()), Float.parseFloat(p[2].trim()), Float.parseFloat(p[3].trim()),
-                    Float.parseFloat(p[4].trim()), Float.parseFloat(p[5].trim()), Float.parseFloat(p[6].trim()));
+                    Float.parseFloat(p[4].trim()), Float.parseFloat(p[5].trim()), Float.parseFloat(p[6].trim()),
+                    flags);
         }
     }
 

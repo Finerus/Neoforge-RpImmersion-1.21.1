@@ -1,5 +1,7 @@
 package net.rp.rpimmersion.client.fog;
 
+import net.rp.rpimmersion.config.FogConfig;
+
 /**
  * Cache côté client de l'état fog reçu du serveur.
  *
@@ -21,6 +23,7 @@ public class ClientFogCache {
     // ── État machine ──────────────────────────────────────────────────────────
     private static boolean active       = false;
     private static boolean clearPending = false; // transition vers vanilla en cours
+    private static int overrideFlags = FogConfig.FogPreset.FLAG_TERRAIN;
 
     // ── Transition ────────────────────────────────────────────────────────────
     private static float fromRed, fromGreen, fromBlue;
@@ -80,9 +83,12 @@ public class ClientFogCache {
      * current* contient toujours la valeur visuelle courante (vanilla ou preset),
      * donc le lerp part du bon endroit quelle que soit la situation.
      */
+
     public static void setTargetFog(float r, float g, float b,
                                     float start, float end,
-                                    float transitionSeconds) {
+                                    float transitionSeconds,
+                                    int flags) {
+        overrideFlags = flags;
         fromRed   = currentRed;   fromGreen = currentGreen; fromBlue  = currentBlue;
         fromStart = currentStart; fromEnd   = currentEnd;
 
@@ -90,7 +96,7 @@ public class ClientFogCache {
         targetStart = start; targetEnd   = end;
 
         transitionDurationMs     = Math.max(0f, transitionSeconds * 1000f);
-        lastTransitionDurationMs = transitionDurationMs; // mémorisé pour la sortie
+        lastTransitionDurationMs = transitionDurationMs;
         transitionProgress       = 0f;
         lastTickMs               = System.currentTimeMillis();
         active                   = true;
@@ -133,6 +139,7 @@ public class ClientFogCache {
         transitionDurationMs     = 0f;
         lastTransitionDurationMs = 2000f;
         lastTickMs               = -1;
+        overrideFlags = FogConfig.FogPreset.FLAG_TERRAIN;
     }
 
     // =========================================================================
@@ -178,6 +185,7 @@ public class ClientFogCache {
     public static float getCurrentStart()   { return currentStart; }
     public static float getCurrentEnd()     { return currentEnd; }
     public static float getVanillaEnd()     { return vanillaEnd; }
+    public static int getOverrideFlags() { return overrideFlags; }
 
     private static float lerp(float a, float b, float t) { return a + (b - a) * t; }
     private static float easeInOut(float t) {

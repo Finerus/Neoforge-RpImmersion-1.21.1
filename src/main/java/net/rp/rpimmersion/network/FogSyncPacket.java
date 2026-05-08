@@ -9,17 +9,13 @@ import net.rp.rpimmersion.RpImmersion;
 import net.rp.rpimmersion.client.fog.ClientFogCache;
 import net.rp.rpimmersion.config.FogConfig;
 
-/**
- * Packet SERVEUR → CLIENT.
- * Transmet l'état de fog résolu pour ce joueur.
- * Si active = false, le client revient au fog vanilla.
- */
 public record FogSyncPacket(
         boolean active,
         String  presetName,
         float   red, float green, float blue,
         float   start, float end,
-        float   transitionSeconds
+        float   transitionSeconds,
+        int     overrideFlags
 ) implements CustomPacketPayload {
 
     public static final Type<FogSyncPacket> TYPE =
@@ -32,7 +28,8 @@ public record FogSyncPacket(
                     return new FogSyncPacket(
                             buf.readBoolean(), buf.readUtf(),
                             buf.readFloat(), buf.readFloat(), buf.readFloat(),
-                            buf.readFloat(), buf.readFloat(), buf.readFloat()
+                            buf.readFloat(), buf.readFloat(), buf.readFloat(),
+                            buf.readInt()
                     );
                 }
 
@@ -42,29 +39,23 @@ public record FogSyncPacket(
                     buf.writeFloat(p.red()); buf.writeFloat(p.green()); buf.writeFloat(p.blue());
                     buf.writeFloat(p.start()); buf.writeFloat(p.end());
                     buf.writeFloat(p.transitionSeconds());
+                    buf.writeInt(p.overrideFlags());
                 }
             };
 
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
-    // =========================================================================
-    // FACTORIES
-    // =========================================================================
-
     public static FogSyncPacket inactive() {
-        return new FogSyncPacket(false, "", 0, 0, 0, 0, 0, 0);
+        return new FogSyncPacket(false, "", 0, 0, 0, 0, 0, 0, 0);
     }
 
     public static FogSyncPacket from(String name, FogConfig.FogPreset p) {
         return new FogSyncPacket(true, name,
                 p.red(), p.green(), p.blue(),
-                p.start(), p.end(), p.transitionSeconds());
+                p.start(), p.end(), p.transitionSeconds(),
+                p.overrideFlags());
     }
-
-    // =========================================================================
-    // HANDLER CLIENT
-    // =========================================================================
 
     public static void handleOnClient(FogSyncPacket packet, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
@@ -72,7 +63,8 @@ public record FogSyncPacket(
                 ClientFogCache.setTargetFog(
                         packet.red(), packet.green(), packet.blue(),
                         packet.start(), packet.end(),
-                        packet.transitionSeconds()
+                        packet.transitionSeconds(),
+                        packet.overrideFlags()
                 );
             } else {
                 ClientFogCache.clearFog();

@@ -18,9 +18,9 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Gestionnaire du calendrier RP.
  * - État persisté dans world/data/rpimmersion/calendar.json
- * - Avance en fonction des ticks serveur
- * - Peut être mis en pause via commande
- * - Sync via CalendarSyncPacket à la connexion et à chaque changement
+ * - Avance en fonction des ticks serveur ou du temps MC (minecraftDaySync)
+ * - Peut être mis en pause via commande ou via le planning RpEssentials
+ * - Sync via CalendarSyncPacket à la connexion et à chaque minute RP
  */
 public class CalendarManager {
 
@@ -41,10 +41,14 @@ public class CalendarManager {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private long  totalRpMinutes = 0; // Minutes RP écoulées depuis la date de début
-    private boolean paused       = false;
-    private int   tickAccumulator = 0;
-    private File  dataFile        = null;
+    private long    totalRpMinutes       = 0;
+    private boolean paused               = false;
+    private boolean schedulePaused       = false;
+
+    // Compteur tick pour le mode normal
+    private int  tickAccumulator    = 0;
+
+    private File dataFile = null;
 
     // =========================================================================
     // INIT / PERSIST
@@ -59,15 +63,14 @@ public class CalendarManager {
         if (dataFile.exists()) {
             load();
         } else {
-            // Initialiser depuis la config
-            try {
-                totalRpMinutes = 0;
-                paused         = false;
-            } catch (IllegalStateException e) {
-                totalRpMinutes = 0;
-            }
+            totalRpMinutes = 0;
+            paused         = false;
             save();
         }
+
+        // Applique l'état du gamerule selon la pause actuelle dès le démarrage
+        updateDaylightCycle(server);
+
         RpImmersion.LOGGER.info("[Calendar] Initialized — {}", formatDisplay(false));
     }
 
@@ -100,19 +103,40 @@ public class CalendarManager {
     // =========================================================================
 
     public void tick(MinecraftServer server) {
-        if (paused) return;
+        if (isEffectivelyPaused()) return;
         try {
+            if (CalendarConfig.MINECRAFT_DAY_SYNC.get()) {
+                tickMcDaySync(server);
+                return;
+            }
             int ticksPerMin = CalendarConfig.TICKS_PER_RP_MINUTE.get();
             tickAccumulator++;
             if (tickAccumulator < ticksPerMin) return;
             tickAccumulator = 0;
             totalRpMinutes++;
-            // Sync et sauvegarde à chaque heure RP pour limiter les I/O
+            // Sync à chaque minute RP — syncer uniquement par heure rendait le calendrier
+            // invisible côté client pendant des dizaines de secondes
+            syncToAll(server);
             int minsPerHour = CalendarConfig.RP_MINUTES_PER_HOUR.get();
-            if (totalRpMinutes % minsPerHour == 0) {
-                syncToAll(server);
-                save();
-            }
+            if (totalRpMinutes % minsPerHour == 0) save();
+        } catch (IllegalStateException ignored) {}
+    }
+
+    private void tickMcDaySync(MinecraftServer server) {
+        long dayTime = server.overworld().getDayTime();
+        try {
+            int minsPerHour = CalendarConfig.RP_MINUTES_PER_HOUR.get();
+            int hoursPerDay = CalendarConfig.RP_HOURS_PER_DAY.get();
+            long minsPerDay = (long) hoursPerDay * minsPerHour;
+
+            long newTotal = dayTime * minsPerDay / 24000L;
+            if (newTotal == totalRpMinutes) return;
+
+            long prev      = totalRpMinutes;
+            totalRpMinutes = newTotal;
+
+            syncToAll(server);
+            if (newTotal / minsPerDay != prev / minsPerDay) save();
         } catch (IllegalStateException ignored) {}
     }
 
@@ -122,9 +146,8 @@ public class CalendarManager {
 
     public DateSnapshot getSnapshot() {
         try {
-            int minsPerHour  = Math.max(1, CalendarConfig.RP_MINUTES_PER_HOUR.get());
-            int hoursPerDay  = Math.max(1, CalendarConfig.RP_HOURS_PER_DAY.get());
-            int minsPerDay   = minsPerHour * hoursPerDay;
+            int minsPerHour = Math.max(1, CalendarConfig.RP_MINUTES_PER_HOUR.get());
+            int hoursPerDay = Math.max(1, CalendarConfig.RP_HOURS_PER_DAY.get());
 
             long totalMinutes = totalRpMinutes;
             int  minute       = (int)(totalMinutes % minsPerHour);
@@ -136,14 +159,12 @@ public class CalendarManager {
             List<? extends Integer> daysPerMonth = CalendarConfig.DAYS_PER_MONTH.get();
             int numMonths = Math.max(1, monthNames.size());
 
-            // Calculer année, mois, jour
             int startYear  = CalendarConfig.START_YEAR.get();
-            int startMonth = CalendarConfig.START_MONTH.get() - 1; // 0-based
-            int startDay   = CalendarConfig.START_DAY.get() - 1;   // 0-based
+            int startMonth = CalendarConfig.START_MONTH.get() - 1;
+            int startDay   = CalendarConfig.START_DAY.get() - 1;
 
             long dayIndex = totalDays + startDay;
 
-            // Avancer les mois depuis startMonth
             int month = startMonth;
             int year  = startYear;
             while (dayIndex >= getDaysInMonth(month, daysPerMonth, numMonths)) {
@@ -152,15 +173,12 @@ public class CalendarManager {
                 if (month >= numMonths) { month = 0; year++; }
             }
 
-            // Jour de la semaine
             List<? extends String> dayNames = CalendarConfig.DAY_NAMES.get();
             int dayOfWeek = dayNames.isEmpty() ? -1 : (int)(totalDays % dayNames.size());
 
-            String monthName  = monthNames.get(Math.min(month, monthNames.size() - 1));
-            String dayName    = (!dayNames.isEmpty() && dayOfWeek >= 0)
-                    ? dayNames.get(dayOfWeek) : "";
+            String monthName = monthNames.get(Math.min(month, monthNames.size() - 1));
+            String dayName   = (!dayNames.isEmpty() && dayOfWeek >= 0) ? dayNames.get(dayOfWeek) : "";
 
-            // Heure de départ
             hour = (hour + CalendarConfig.START_HOUR.get()) % Math.max(1, hoursPerDay);
 
             return new DateSnapshot(year, month + 1, (int) dayIndex + 1,
@@ -199,7 +217,8 @@ public class CalendarManager {
                 .replace("{hour}",      String.format("%02d", s.hour()))
                 .replace("{minute}",    String.format("%02d", s.minute()));
 
-        if (withPause && paused) {
+        // Utilise isEffectivelyPaused pour afficher le suffixe même en pause automatique
+        if (withPause && isEffectivelyPaused()) {
             try { result += CalendarConfig.PAUSED_SUFFIX.get(); }
             catch (IllegalStateException e) { result += " (paused)"; }
         }
@@ -210,7 +229,7 @@ public class CalendarManager {
         DateSnapshot s = getSnapshot();
         return new CalendarSyncPacket(
                 s.year(), s.month(), s.day(), s.hour(), s.minute(), s.dayOfWeek(),
-                paused, formatDisplay(true)
+                isEffectivelyPaused(), formatDisplay(true)
         );
     }
 
@@ -235,6 +254,7 @@ public class CalendarManager {
     public void setPaused(boolean pause, MinecraftServer server) {
         this.paused = pause;
         save();
+        updateDaylightCycle(server);
         syncToAll(server);
     }
 
@@ -251,7 +271,6 @@ public class CalendarManager {
             int startMonth = CalendarConfig.START_MONTH.get() - 1;
             int startDay   = CalendarConfig.START_DAY.get() - 1;
 
-            // Calculer totalDays depuis le début
             long days = 0;
             int y = startYear, m = startMonth;
             while (y < year || (y == year && m < month - 1)) {
@@ -265,6 +284,8 @@ public class CalendarManager {
             int adjHour = Math.max(0, hour - CalendarConfig.START_HOUR.get());
             totalRpMinutes = days * hoursPerDay * minsPerHour + (long) adjHour * minsPerHour + minute;
             tickAccumulator = 0;
+
+            // Reset de la baseline MC sinon tickMcDaySync écraserait la valeur qu'on vient de définir
             save();
             syncToAll(server);
         } catch (IllegalStateException e) {
@@ -274,10 +295,67 @@ public class CalendarManager {
 
     public void advance(int minutes, MinecraftServer server) {
         totalRpMinutes = Math.max(0, totalRpMinutes + minutes);
+        // Reset de la baseline MC sinon tickMcDaySync écraserait l'avance
         save();
         syncToAll(server);
     }
 
-    public boolean isPaused()         { return paused; }
-    public long    getTotalRpMinutes() { return totalRpMinutes; }
+    // =========================================================================
+    // SCHEDULE PAUSE (appelé depuis CalendarServerEventHandler toutes les ~20 ticks)
+    // =========================================================================
+
+    public void updateSchedulePause(MinecraftServer server) {
+        try {
+            if (!CalendarConfig.PAUSE_WHEN_SERVER_CLOSED.get()) {
+                if (schedulePaused) {
+                    schedulePaused = false;
+                    updateDaylightCycle(server);
+                }
+                return;
+            }
+        } catch (IllegalStateException e) { return; }
+
+        boolean serverOpen = true;
+        try {
+            serverOpen = net.rp.rpessentials.RpEssentialsScheduleManager.getActiveSchedule() != null;
+        } catch (Exception ignored) {}
+
+        boolean shouldPause = !serverOpen;
+        if (shouldPause != schedulePaused) {
+            schedulePaused = shouldPause;
+            RpImmersion.LOGGER.info("[Calendar] Schedule-based pause: {}", schedulePaused);
+            updateDaylightCycle(server);
+            syncToAll(server);
+        }
+    }
+
+    // =========================================================================
+    // HELPERS PRIVÉS
+    // =========================================================================
+
+    /**
+     * Fixe la baseline MC au temps courant.
+     * Appelé à l'init, après setDate et après advance, pour que tickMcDaySync
+     * parte toujours du bon totalRpMinutes.
+     */
+
+    private void updateDaylightCycle(MinecraftServer server) {
+        try {
+            boolean mcSync = CalendarConfig.MINECRAFT_DAY_SYNC.get();
+            if (!mcSync && !CalendarConfig.SYNC_DAYLIGHT_CYCLE.get()) return;
+        } catch (IllegalStateException e) { return; }
+        boolean shouldRun = !isEffectivelyPaused();
+        server.overworld().getGameRules()
+                .getRule(net.minecraft.world.level.GameRules.RULE_DAYLIGHT)
+                .set(shouldRun, server);
+        RpImmersion.LOGGER.info("[Calendar] doDaylightCycle → {}", shouldRun);
+    }
+
+    // =========================================================================
+    // GETTERS
+    // =========================================================================
+
+    public boolean isEffectivelyPaused() { return paused || schedulePaused; }
+    public boolean isPaused()            { return paused; }
+    public long    getTotalRpMinutes()   { return totalRpMinutes; }
 }

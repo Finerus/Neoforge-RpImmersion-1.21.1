@@ -11,7 +11,7 @@ import net.rp.rpimmersion.RpImmersion;
 import net.rp.rpimmersion.config.FogConfig;
 import net.rp.rpimmersion.config.WeatherConfig;
 import net.rp.rpimmersion.fog.FogManager;
-import net.rp.rpimmersion.network.WeatherSyncPacket;
+import net.rp.rpimmersion.network.ClientSyncManager;
 
 /**
  * Gère le cycle de vie serveur du fog.
@@ -39,12 +39,18 @@ public class FogServerEventHandler {
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
-
-        // Fog initial
+        ClientSyncManager.syncToPlayer(player);
         FogManager.get().syncToPlayer(player);
+    }
 
-        // Permissions client (shake/fog override)
-        sendClientPermissions(player);
+    @SubscribeEvent
+    public void onDimensionChange(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) FogManager.get().syncToPlayer(player);
+    }
+
+    @SubscribeEvent
+    public void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) FogManager.get().syncToPlayer(player);
     }
 
     @SubscribeEvent
@@ -69,18 +75,5 @@ public class FogServerEventHandler {
         for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
             FogManager.get().syncToPlayer(player);
         }
-    }
-
-    // =========================================================================
-    // HELPERS
-    // =========================================================================
-
-    private void sendClientPermissions(ServerPlayer player) {
-        boolean allowShake = true;
-        boolean allowFog   = false; // Par défaut : le serveur contrôle le fog
-        try {
-            allowShake = WeatherConfig.ALLOW_CLIENT_SHAKE_OVERRIDE.get();
-        } catch (IllegalStateException ignored) {}
-        PacketDistributor.sendToPlayer(player, new WeatherSyncPacket(allowShake, allowFog));
     }
 }

@@ -14,6 +14,7 @@ public class FogConfig {
     // GENERAL
     // =========================================================================
     public static final ModConfigSpec.BooleanValue ENABLE_FOG_SYSTEM;
+    public static final ModConfigSpec.BooleanValue ALLOW_CLIENT_FOG_OVERRIDE;
 
     // =========================================================================
     // GLOBAL FOG
@@ -31,6 +32,12 @@ public class FogConfig {
     public static final ModConfigSpec.ConfigValue<String> WORLD_BORDER_FOG_PRESET;
     /** Priority of world border fog. Usually very high to override everything. */
     public static final ModConfigSpec.IntValue      WORLD_BORDER_FOG_PRIORITY;
+
+
+    // =========================================================================
+    // FOG DIMENSIONS
+    // =========================================================================
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> FOG_DIMENSIONS;
 
     // =========================================================================
     // DAY/NIGHT THRESHOLDS
@@ -81,6 +88,10 @@ public class FogConfig {
         ENABLE_FOG_SYSTEM = BUILDER
                 .comment("Master switch for the RPImmersion fog system.")
                 .define("enableFogSystem", true);
+        ALLOW_CLIENT_FOG_OVERRIDE = BUILDER
+                .comment("If true, clients can disable the server-controlled fog from their own client config.",
+                        "If false, the server fog is always enforced.")
+                .define("allowClientFogOverride", false);
         BUILDER.pop();
 
         // ── Global Fog ────────────────────────────────────────────────────────
@@ -180,11 +191,12 @@ public class FogConfig {
 
         FOG_ZONES = BUILDER
                 .comment(
-                        "Circular fog zones. Format : zoneName;centerX;centerZ;radius;presetName;priority[;dayPreset;nightPreset]",
+                        "Circular fog zones. Format : zoneName;centerX;centerZ;radius;presetName;priority[;dayPreset;nightPreset[;dimension]]",
                         "  priority   : higher = overrides lower priority zones",
-                        "  dayPreset  : optional — overrides presetName during day",
-                        "  nightPreset: optional — overrides presetName during night",
-                        "Example: dark_forest;100;-200;80;cursed_forest;10;morning_mist;night_fog"
+                        "  dayPreset  : optional, overrides presetName during day",
+                        "  nightPreset: optional, overrides presetName during night",
+                        "  dimension  : optional, restricts the zone to one dimension (e.g. minecraft:overworld)",
+                        "Example: dark_forest;100;-200;80;cursed_forest;10;morning_mist;night_fog;minecraft:overworld"
                 )
                 .defineList("zones", List.of(),
                         obj -> obj instanceof String s && s.split(";").length >= 5);
@@ -213,6 +225,20 @@ public class FogConfig {
                                 "minecraft:swamp;thick_swamp;3"
                         ),
                         obj -> obj instanceof String s && s.split(";").length >= 3);
+
+        BUILDER.pop();
+
+        // ── Dimensions ────────────────────────────────────────────────────────
+        BUILDER.push("Fog Dimensions");
+
+        FOG_DIMENSIONS = BUILDER
+                .comment(
+                        "Dimension-based fog. Format : dimensionId;presetName[;dayPreset;nightPreset]",
+                        "Applied after zones, RpEssentials overrides and biomes, but before the global fog.",
+                        "Example: minecraft:the_nether;thick_swamp"
+                )
+                .defineList("dimensions", List.of(),
+                        obj -> obj instanceof String s && s.split(";").length >= 2);
 
         BUILDER.pop();
 
@@ -277,7 +303,7 @@ public class FogConfig {
 
     public record FogZone(String name, double centerX, double centerZ, double radius,
                           String presetName, int priority,
-                          String dayPreset, String nightPreset) {
+                          String dayPreset, String nightPreset, String dimension) {
         public static FogZone parse(String raw) {
             String[] p = raw.split(";");
             return new FogZone(p[0].trim(),
@@ -285,11 +311,21 @@ public class FogConfig {
                     Double.parseDouble(p[3].trim()),
                     p[4].trim(), p.length >= 6 ? Integer.parseInt(p[5].trim()) : 0,
                     p.length >= 7 ? p[6].trim() : "",
-                    p.length >= 8 ? p[7].trim() : "");
+                    p.length >= 8 ? p[7].trim() : "",
+                    p.length >= 9 ? p[8].trim() : "");
         }
         public boolean contains(double x, double z) {
             double dx = x - centerX, dz = z - centerZ;
             return dx * dx + dz * dz <= radius * radius;
+        }
+    }
+
+    public record FogDimension(String dimension, String presetName, String dayPreset, String nightPreset) {
+        public static FogDimension parse(String raw) {
+            String[] p = raw.split(";");
+            return new FogDimension(p[0].trim(), p[1].trim(),
+                    p.length >= 3 ? p[2].trim() : "",
+                    p.length >= 4 ? p[3].trim() : "");
         }
     }
 

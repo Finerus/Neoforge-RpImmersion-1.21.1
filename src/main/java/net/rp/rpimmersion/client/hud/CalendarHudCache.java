@@ -2,105 +2,109 @@ package net.rp.rpimmersion.client.hud;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.rp.rpimmersion.RpImmersion;
-import net.rp.rpimmersion.config.CalendarConfig;
 import net.rp.rpimmersion.network.CalendarSyncPacket;
 
-/**
- * Cache et rendu HUD du calendrier côté client.
- * Reçoit les données via CalendarSyncPacket.
- * Affiche selon le mode configuré (HUD, ACTION_BAR, BOTH).
- */
 @EventBusSubscriber(modid = RpImmersion.MODID, value = Dist.CLIENT)
 public class CalendarHudCache {
 
     private static String  displayString = "";
+    private static String  displayMode   = "NONE";
+    private static String  hudPosition   = "TOP_LEFT";
+    private static float   hudScale      = 1.0f;
+    private static boolean hudBackground = true;
     private static boolean received      = false;
+    private static boolean sending       = false;
     private static int     actionBarCooldown = 0;
-
-    // =========================================================================
-    // MISE À JOUR depuis packet
-    // =========================================================================
+    private static long    foreignOverlayUntil = 0;
 
     public static void update(CalendarSyncPacket packet) {
         displayString = packet.displayString();
+        displayMode   = packet.displayMode();
+        hudPosition   = packet.hudPosition();
+        hudScale      = packet.hudScale();
+        hudBackground = packet.hudBackground();
         received      = true;
-        // Si mode ACTION_BAR ou BOTH : envoyer immédiatement en action bar
-        sendToActionBarIfNeeded();
+        if (actionBarEnabled()) showActionBar();
     }
 
     public static void reset() {
         displayString = "";
+        displayMode   = "NONE";
         received      = false;
         actionBarCooldown = 0;
+        foreignOverlayUntil = 0;
     }
 
-    // =========================================================================
-    // ACTION BAR (rendu via tick client)
-    // =========================================================================
+    private static boolean actionBarEnabled() {
+        return received && !displayString.isEmpty()
+                && (displayMode.equals("ACTION_BAR") || displayMode.equals("BOTH"));
+    }
 
-    private static void sendToActionBarIfNeeded() {
-        if (!received || displayString.isEmpty()) return;
+    private static boolean hudEnabled() {
+        return received && !displayString.isEmpty()
+                && (displayMode.equals("HUD") || displayMode.equals("BOTH"));
+    }
+
+    private static void showActionBar() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+        if (mc.level.getGameTime() < foreignOverlayUntil) return;
+        sending = true;
         try {
-            String mode = CalendarConfig.DISPLAY_MODE.get().toUpperCase();
-            if (mode.equals("ACTION_BAR") || mode.equals("BOTH")) {
-                Minecraft mc = Minecraft.getInstance();
-                if (mc.player != null) {
-                    mc.player.displayClientMessage(
-                            net.minecraft.network.chat.Component.literal(displayString), true);
-                }
-            }
-        } catch (IllegalStateException ignored) {}
+            mc.player.displayClientMessage(Component.literal(displayString), true);
+        } finally {
+            sending = false;
+        }
     }
 
-    // =========================================================================
-    // HUD RENDERING
-    // =========================================================================
+    @SubscribeEvent
+    public static void onSystemChat(ClientChatReceivedEvent.System event) {
+        if (!event.isOverlay() || sending) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) foreignOverlayUntil = mc.level.getGameTime() + 60;
+    }
 
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
-        if (!received || displayString.isEmpty()) return;
-
-        try {
-            String mode = CalendarConfig.DISPLAY_MODE.get().toUpperCase();
-            if (!mode.equals("HUD") && !mode.equals("BOTH")) return;
-        } catch (IllegalStateException e) { return; }
+        if (!hudEnabled()) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.hideGui) return;
 
-        GuiGraphics graphics = event.getGuiGraphics();
-        int x = 4;
-        int y = 4;
+        GuiGraphics g = event.getGuiGraphics();
+        int textW = mc.font.width(displayString);
+        int textH = mc.font.lineHeight;
+        int margin = 4;
+        int boxW = Math.round((textW + 4) * hudScale);
+        int boxH = Math.round((textH + 4) * hudScale);
 
-        // Fond semi-transparent
-        int textWidth = mc.font.width(net.minecraft.network.chat.Component.literal(displayString));
-        graphics.fill(x - 2, y - 2, x + textWidth + 2, y + mc.font.lineHeight + 2, 0x88000000);
-        graphics.drawString(mc.font, displayString, x, y, 0xFFFFFF, true);
+        int x = switch (hudPosition) {
+            case "TOP_RIGHT", "BOTTOM_RIGHT" -> g.guiWidth() - boxW - margin;
+            case "TOP_CENTER" -> (g.guiWidth() - boxW) / 2;
+            default -> margin;
+        };
+        int y = hudPosition.startsWith("BOTTOM") ? g.guiHeight() - boxH - margin : margin;
+
+        g.pose().pushPose();
+        g.pose().translate(x, y, 0);
+        g.pose().scale(hudScale, hudScale, 1f);
+        if (hudBackground) g.fill(0, 0, textW + 4, textH + 4, 0x88000000);
+        g.drawString(mc.font, displayString, 2, 2, 0xFFFFFF, true);
+        g.pose().popPose();
     }
 
-    // =========================================================================
-    // REFRESH périodique de l'action bar (toutes les 20 ticks pour qu'elle reste visible)
-    // =========================================================================
-
     public static void clientTick() {
-        if (!received || displayString.isEmpty()) return;
-        try {
-            String mode = CalendarConfig.DISPLAY_MODE.get().toUpperCase();
-            if (!mode.equals("ACTION_BAR") && !mode.equals("BOTH")) return;
-        } catch (IllegalStateException e) { return; }
-
+        if (!actionBarEnabled()) return;
         if (--actionBarCooldown > 0) return;
-        actionBarCooldown = 20; // Rafraîchir toutes les 20 ticks
-
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null)
-            mc.player.displayClientMessage(
-                    net.minecraft.network.chat.Component.literal(displayString), true);
+        actionBarCooldown = 20;
+        showActionBar();
     }
 
     public static String getDisplayString() { return displayString; }

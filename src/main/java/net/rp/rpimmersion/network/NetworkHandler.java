@@ -12,7 +12,7 @@ public class NetworkHandler {
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar reg = event.registrar("1");
+        PayloadRegistrar reg = event.registrar("2");
 
         reg.playToClient(
                 FogSyncPacket.TYPE,
@@ -30,9 +30,9 @@ public class NetworkHandler {
                 new DirectionalPayloadHandler<>(CalendarSyncPacket::handleOnClient, null)
         );
         reg.playToClient(
-                WeatherSyncPacket.TYPE,
-                WeatherSyncPacket.STREAM_CODEC,
-                new DirectionalPayloadHandler<>(WeatherSyncPacket::handleOnClient, null)
+                ClientSettingsPacket.TYPE,
+                ClientSettingsPacket.STREAM_CODEC,
+                new DirectionalPayloadHandler<>(ClientSettingsPacket::handleOnClient, null)
         );
     }
 }

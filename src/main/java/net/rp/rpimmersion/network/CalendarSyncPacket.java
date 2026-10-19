@@ -1,3 +1,4 @@
+
 package net.rp.rpimmersion.network;
 
 import net.minecraft.network.FriendlyByteBuf;
@@ -14,15 +15,20 @@ import net.rp.rpimmersion.client.hud.CalendarHudCache;
  * Envoyé à la connexion, au reload, et à chaque changement de date/pause.
  */
 public record CalendarSyncPacket(
-        int  year, int month, int day,
-        int  hour, int minute,
-        int  dayOfWeek,    // -1 si pas de semaine configurée
+        int year, int month, int day,
+        int hour, int minute,
+        int dayOfWeek,
         boolean paused,
-        String  displayString // Chaîne pré-formatée côté serveur
+        String displayString,
+        String displayMode,
+        String hudPosition,
+        float hudScale,
+        boolean hudBackground
 ) implements CustomPacketPayload {
 
     public static final Type<CalendarSyncPacket> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(RpImmersion.MODID, "calendar_sync"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(
+                    RpImmersion.MODID, "calendar_sync"));
 
     public static final StreamCodec<FriendlyByteBuf, CalendarSyncPacket> STREAM_CODEC =
             new StreamCodec<>() {
@@ -31,21 +37,36 @@ public record CalendarSyncPacket(
                     return new CalendarSyncPacket(
                             buf.readInt(), buf.readInt(), buf.readInt(),
                             buf.readInt(), buf.readInt(), buf.readInt(),
-                            buf.readBoolean(), buf.readUtf()
+                            buf.readBoolean(), buf.readUtf(),
+                            buf.readUtf(), buf.readUtf(),
+                            buf.readFloat(), buf.readBoolean()
                     );
                 }
+
                 @Override
                 public void encode(FriendlyByteBuf buf, CalendarSyncPacket p) {
-                    buf.writeInt(p.year()); buf.writeInt(p.month()); buf.writeInt(p.day());
-                    buf.writeInt(p.hour()); buf.writeInt(p.minute()); buf.writeInt(p.dayOfWeek());
-                    buf.writeBoolean(p.paused()); buf.writeUtf(p.displayString());
+                    buf.writeInt(p.year());
+                    buf.writeInt(p.month());
+                    buf.writeInt(p.day());
+                    buf.writeInt(p.hour());
+                    buf.writeInt(p.minute());
+                    buf.writeInt(p.dayOfWeek());
+                    buf.writeBoolean(p.paused());
+                    buf.writeUtf(p.displayString());
+                    buf.writeUtf(p.displayMode());
+                    buf.writeUtf(p.hudPosition());
+                    buf.writeFloat(p.hudScale());
+                    buf.writeBoolean(p.hudBackground());
                 }
             };
 
     @Override
-    public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 
-    public static void handleOnClient(CalendarSyncPacket packet, IPayloadContext ctx) {
+    public static void handleOnClient(
+            CalendarSyncPacket packet, IPayloadContext ctx) {
         ctx.enqueueWork(() -> CalendarHudCache.update(packet));
     }
 }

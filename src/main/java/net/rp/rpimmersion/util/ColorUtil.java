@@ -16,7 +16,7 @@ public class ColorUtil {
 
     public static Component parse(String text) {
         if (text == null || text.isEmpty()) return Component.empty();
-        text = text.replace("&", "§");
+        text = text.replaceAll("&(?=[0-9a-fk-orA-FK-OR])", "§");
         if (!text.contains("§")) return Component.literal(text);
 
         MutableComponent result = Component.empty();
@@ -48,23 +48,23 @@ public class ColorUtil {
     }
 
     private static Style applyCode(Style s, char c) {
-        return switch (c) {
-            case '0' -> s.withColor(ChatFormatting.BLACK);
-            case '1' -> s.withColor(ChatFormatting.DARK_BLUE);
-            case '2' -> s.withColor(ChatFormatting.DARK_GREEN);
-            case '3' -> s.withColor(ChatFormatting.DARK_AQUA);
-            case '4' -> s.withColor(ChatFormatting.DARK_RED);
-            case '5' -> s.withColor(ChatFormatting.DARK_PURPLE);
-            case '6' -> s.withColor(ChatFormatting.GOLD);
-            case '7' -> s.withColor(ChatFormatting.GRAY);
-            case '8' -> s.withColor(ChatFormatting.DARK_GRAY);
-            case '9' -> s.withColor(ChatFormatting.BLUE);
-            case 'a' -> s.withColor(ChatFormatting.GREEN);
-            case 'b' -> s.withColor(ChatFormatting.AQUA);
-            case 'c' -> s.withColor(ChatFormatting.RED);
-            case 'd' -> s.withColor(ChatFormatting.LIGHT_PURPLE);
-            case 'e' -> s.withColor(ChatFormatting.YELLOW);
-            case 'f' -> s.withColor(ChatFormatting.WHITE);
+        return switch (Character.toLowerCase(c)) {
+            case '0' -> Style.EMPTY.withColor(ChatFormatting.BLACK);
+            case '1' -> Style.EMPTY.withColor(ChatFormatting.DARK_BLUE);
+            case '2' -> Style.EMPTY.withColor(ChatFormatting.DARK_GREEN);
+            case '3' -> Style.EMPTY.withColor(ChatFormatting.DARK_AQUA);
+            case '4' -> Style.EMPTY.withColor(ChatFormatting.DARK_RED);
+            case '5' -> Style.EMPTY.withColor(ChatFormatting.DARK_PURPLE);
+            case '6' -> Style.EMPTY.withColor(ChatFormatting.GOLD);
+            case '7' -> Style.EMPTY.withColor(ChatFormatting.GRAY);
+            case '8' -> Style.EMPTY.withColor(ChatFormatting.DARK_GRAY);
+            case '9' -> Style.EMPTY.withColor(ChatFormatting.BLUE);
+            case 'a' -> Style.EMPTY.withColor(ChatFormatting.GREEN);
+            case 'b' -> Style.EMPTY.withColor(ChatFormatting.AQUA);
+            case 'c' -> Style.EMPTY.withColor(ChatFormatting.RED);
+            case 'd' -> Style.EMPTY.withColor(ChatFormatting.LIGHT_PURPLE);
+            case 'e' -> Style.EMPTY.withColor(ChatFormatting.YELLOW);
+            case 'f' -> Style.EMPTY.withColor(ChatFormatting.WHITE);
             case 'l' -> s.withBold(true);
             case 'o' -> s.withItalic(true);
             case 'n' -> s.withUnderlined(true);

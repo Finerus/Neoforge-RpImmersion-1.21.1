@@ -7,15 +7,17 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.rp.rpimmersion.compat.StaffChecker;
 import net.rp.rpimmersion.config.FogConfig;
 import net.rp.rpimmersion.fog.FogManager;
+import net.rp.rpimmersion.network.ClientSyncManager;
 
 public class FogCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
                                 com.mojang.brigadier.tree.LiteralCommandNode<CommandSourceStack> root) {
         var node = Commands.literal("fog")
-                .requires(src -> net.rp.rpessentials.RpEssentialsPermissions.isStaff(src.getPlayer()));
+                .requires(StaffChecker::isStaffSource);
 
         // /rpimmersion fog set global <preset|clear>
         node.then(Commands.literal("set")
@@ -120,6 +122,7 @@ public class FogCommands {
         // /rpimmersion fog reload
         node.then(Commands.literal("reload").executes(ctx -> {
             FogManager.get().reload();
+            ClientSyncManager.syncToAll(ctx.getSource().getServer());
             FogManager.get().syncToAll(ctx.getSource().getServer());
             ctx.getSource().sendSuccess(() -> Component.literal("§a[RPImmersion] Fog config reloaded and synced."), true);
             return 1;

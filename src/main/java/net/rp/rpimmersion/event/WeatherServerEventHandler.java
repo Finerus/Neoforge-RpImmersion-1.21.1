@@ -1,8 +1,10 @@
 package net.rp.rpimmersion.event;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LightningBolt;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityStruckByLightningEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -11,8 +13,9 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.rp.rpimmersion.RpImmersion;
 import net.rp.rpimmersion.config.WeatherConfig;
-import net.rp.rpimmersion.network.WeatherSyncPacket;
 import net.rp.rpimmersion.weather.WeatherManager;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 public class WeatherServerEventHandler {
 
@@ -37,19 +40,24 @@ public class WeatherServerEventHandler {
     }
 
     @SubscribeEvent
-    public void onLightningStruck(EntityStruckByLightningEvent event) {
-        if (!(event.getLightning() instanceof LightningBolt bolt)) return;
-        var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
-        if (server == null) return;
-        WeatherManager.get().onLightningStruck(bolt.blockPosition(), server);
-    }
+    public void onLightningJoin(EntityJoinLevelEvent event) {
+        if (!(event.getEntity() instanceof LightningBolt bolt)) return;
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
 
-    @SubscribeEvent
-    public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) return;
         try {
-            boolean allowShake = WeatherConfig.ALLOW_CLIENT_SHAKE_OVERRIDE.get();
-            PacketDistributor.sendToPlayer(player, new WeatherSyncPacket(allowShake, false));
-        } catch (IllegalStateException ignored) {}
+            if (!WeatherConfig.ENABLE_WEATHER_SYSTEM.get()) return;
+
+            boolean extra = bolt.getTags().contains(WeatherManager.EXTRA_BOLT_TAG);
+            if (!extra && bolt.getCause() == null && level.isThundering()
+                    && WeatherConfig.LIGHTNING_CONTROL_ENABLED.get()) {
+                double multiplier = WeatherConfig.LIGHTNING_FREQUENCY_MULTIPLIER.get();
+                if (multiplier < 1.0 && ThreadLocalRandom.current().nextDouble() > multiplier) {
+                    event.setCanceled(true);
+                    return;
+                }
+            }
+        } catch (IllegalStateException e) { return; }
+
+        WeatherManager.get().onLightningStruck(bolt.blockPosition(), level);
     }
 }

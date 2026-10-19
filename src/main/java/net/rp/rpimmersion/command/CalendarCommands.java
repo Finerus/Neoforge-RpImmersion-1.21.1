@@ -71,7 +71,11 @@ public class CalendarCommands {
         int y = IntegerArgumentType.getInteger(ctx, "year");
         int m = IntegerArgumentType.getInteger(ctx, "month");
         int d = IntegerArgumentType.getInteger(ctx, "day");
-        CalendarManager.get().setDate(y, m, d, hour, minute, ctx.getSource().getServer());
+        if (!CalendarManager.get().setDate(y, m, d, hour, minute, ctx.getSource().getServer())) {
+            ctx.getSource().sendFailure(Component.literal(
+                    "§c[RPImmersion] Invalid date for the configured calendar (month or day out of range)."));
+            return 0;
+        }
         ctx.getSource().sendSuccess(() -> Component.literal(
                 "§a[RPImmersion] Calendar set: §e" + CalendarManager.get().formatDisplay(false)), true);
         return 1;

@@ -24,6 +24,7 @@ public class ClientEventHandler {
         CameraShakeHandler.reset();
         CalendarHudCache.reset();
         ClientPermissions.reset();
+        ClientHudState.reset();
         RpImmersion.LOGGER.info("[RPImmersion] Client caches reset on disconnect.");
     }
 }

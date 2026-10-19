@@ -7,6 +7,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.rp.rpimmersion.config.WeatherConfig;
+import net.rp.rpimmersion.network.ClientSyncManager;
 import net.rp.rpimmersion.weather.WeatherManager;
 
 public class WeatherCommands {
@@ -53,6 +54,7 @@ public class WeatherCommands {
         node.then(Commands.literal("reload")
                 .executes(ctx -> {
                     WeatherManager.get().reload();
+                    ClientSyncManager.syncToAll(ctx.getSource().getServer());
                     ctx.getSource().sendSuccess(() -> Component.literal("§a[RPImmersion] Weather reloaded."), true);
                     return 1;
                 }));

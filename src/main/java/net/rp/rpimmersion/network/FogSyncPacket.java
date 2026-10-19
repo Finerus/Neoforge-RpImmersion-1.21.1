@@ -50,6 +50,10 @@ public record FogSyncPacket(
         return new FogSyncPacket(false, "", 0, 0, 0, 0, 0, 0, 0);
     }
 
+    public FogSyncPacket withTransition(float seconds) {
+        return new FogSyncPacket(active, presetName, red, green, blue, start, end, seconds, overrideFlags);
+    }
+
     public static FogSyncPacket from(String name, FogConfig.FogPreset p) {
         return new FogSyncPacket(true, name,
                 p.red(), p.green(), p.blue(),

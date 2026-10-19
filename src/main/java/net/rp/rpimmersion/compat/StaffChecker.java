@@ -1,5 +1,6 @@
 package net.rp.rpimmersion.compat;
 
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -28,11 +29,15 @@ public class StaffChecker {
         if (RPE_AVAILABLE) {
             try {
                 return net.rp.rpessentials.RpEssentialsPermissions.isStaff(player);
-            } catch (Exception e) {
+            } catch (Exception | LinkageError e) {
                 return player.hasPermissions(2);
             }
         }
-        // Fallback si RpEssentials absent (ne devrait pas arriver en prod)
         return player.hasPermissions(2);
+    }
+
+    public static boolean isStaffSource(CommandSourceStack src) {
+        if (src.getEntity() instanceof ServerPlayer player) return isStaff(player);
+        return src.hasPermission(2);
     }
 }

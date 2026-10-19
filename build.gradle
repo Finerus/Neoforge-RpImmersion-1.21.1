@@ -22,9 +22,23 @@ repositories {
     mavenLocal()
     mavenCentral()
     maven { url 'https://maven.neoforged.net/releases' }
-    maven { url "https://maven.txni.dev/releases" }
-    maven { url "https://maven.su5ed.dev/releases" }
-    maven { url "https://api.modrinth.com/maven" }
+    maven { url 'https://maven.su5ed.dev/releases' }
+
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter {
+            includeGroup 'maven.modrinth'
+        }
+    }
+
+    flatDir {
+        dirs 'libs'
+    }
 }
 
 neoForge {
@@ -64,17 +78,14 @@ configurations {
 }
 
 dependencies {
-    // ImmersiveMessages — optional client (compileOnly = ne crash pas si absent en runtime)
-    compileOnly("toni.immersivemessages:neoforge-1.21.1:1.0.18") { transitive = false }
+    // ImmersiveMessages : dépôt Modrinth
+    implementation 'maven.modrinth:6xvrmbjn:VMWHOnc1'
 
-    // TxniLib — requis par ImmersiveMessages côté client
-    compileOnly "maven.modrinth:txnilib:neoforge-1.21.1-1.0.24"
+    // TxniLib : dépôt Modrinth
+    implementation 'maven.modrinth:txnilib:neoforge-1.21.1-1.0.24'
 
-    // Compile : rpimmersion voit les classes de rpessentials
+    // RpEssentials : publication Maven locale
     compileOnly "net.rpessentials:rpessentials:${rpessentials_version}"
-
-    // Runtime dev : rpessentials est chargé quand tu lances le jeu via Gradle
-    // Sans ça → ClassNotFoundException au démarrage
     localRuntime "net.rpessentials:rpessentials:${rpessentials_version}"
 }
 

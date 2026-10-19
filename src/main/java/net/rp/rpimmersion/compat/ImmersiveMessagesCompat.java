@@ -31,24 +31,17 @@ public class ImmersiveMessagesCompat {
      * Repli : IMMERSIVE → ACTION_BAR si ImmersiveMessages absent.
      */
     public static void sendMessage(ServerPlayer player, String rawMessage, String mode) {
+        try {
+            net.rp.rpessentials.ImmersivePresetHelper.send(player, rawMessage, mode);
+            return;
+        } catch (RuntimeException | LinkageError ignored) {}
+
         Component component = net.rp.rpimmersion.util.ColorUtil.parse(rawMessage);
-        switch (mode.toUpperCase()) {
-            case "IMMERSIVE" -> {
-                if (AVAILABLE) {
-                    try {
-                        toni.immersivemessages.api.ImmersiveMessage
-                                .builder(4f, rawMessage)
-                                .fadeIn(0.5f).fadeOut(0.5f)
-                                .sendServer(player);
-                        return;
-                    } catch (Exception | NoClassDefFoundError e) {
-                        // Fallback
-                    }
-                }
-                player.displayClientMessage(component, true); // ACTION_BAR fallback
-            }
-            case "ACTION_BAR" -> player.displayClientMessage(component, true);
-            default           -> player.sendSystemMessage(component); // CHAT
+        String upper = mode.toUpperCase();
+        if (upper.startsWith("IMMERSIVE") || upper.equals("ACTION_BAR")) {
+            player.displayClientMessage(component, true);
+        } else {
+            player.sendSystemMessage(component);
         }
     }
 

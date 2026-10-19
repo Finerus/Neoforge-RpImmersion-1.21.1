@@ -47,16 +47,18 @@ public class ClientFogCache {
     private static float vanillaRed, vanillaGreen, vanillaBlue;
     private static float vanillaStart, vanillaEnd;
 
+    private static boolean hasVanillaColor = false;
+    private static boolean hasVanillaDistances = false;
+
     // =========================================================================
     // SAMPLING VANILLA — appelé CHAQUE FRAME par FogEventHandler (avant override)
     // =========================================================================
-
     /** Capture la couleur fog vanilla du frame courant. */
     public static void sampleVanillaColor(float r, float g, float b) {
         vanillaRed   = r;
         vanillaGreen = g;
         vanillaBlue  = b;
-        // Quand aucun preset n'est actif, current* suit le vanilla en temps réel
+        hasVanillaColor = true;
         if (!active && !clearPending) {
             currentRed   = r;
             currentGreen = g;
@@ -68,6 +70,7 @@ public class ClientFogCache {
     public static void sampleVanillaDistances(float start, float end) {
         vanillaStart = start;
         vanillaEnd   = end;
+        hasVanillaDistances = true;
         if (!active && !clearPending) {
             currentStart = start;
             currentEnd   = end;
@@ -89,6 +92,14 @@ public class ClientFogCache {
                                     float transitionSeconds,
                                     int flags) {
         overrideFlags = flags;
+
+        if (!active && !hasVanillaColor) {
+            currentRed = r; currentGreen = g; currentBlue = b;
+        }
+        if (!active && !hasVanillaDistances) {
+            currentStart = start; currentEnd = end;
+        }
+
         fromRed   = currentRed;   fromGreen = currentGreen; fromBlue  = currentBlue;
         fromStart = currentStart; fromEnd   = currentEnd;
 
@@ -109,6 +120,12 @@ public class ClientFogCache {
      */
     public static void clearFog() {
         if (!active || clearPending) return;
+
+        if (!hasVanillaColor || !hasVanillaDistances) {
+            active = false;
+            clearPending = false;
+            return;
+        }
 
         fromRed   = currentRed;   fromGreen = currentGreen; fromBlue  = currentBlue;
         fromStart = currentStart; fromEnd   = currentEnd;
@@ -140,6 +157,8 @@ public class ClientFogCache {
         lastTransitionDurationMs = 2000f;
         lastTickMs               = -1;
         overrideFlags = FogConfig.FogPreset.FLAG_TERRAIN;
+        hasVanillaColor = false;
+        hasVanillaDistances = false;
     }
 
     // =========================================================================

@@ -57,6 +57,15 @@ public class CalendarConfig {
     public static final ModConfigSpec.ConfigValue<String> PAUSED_SUFFIX;
 
     // =========================================================================
+    // HUD & EVENTS
+    // =========================================================================
+    public static final ModConfigSpec.ConfigValue<String> HUD_POSITION;
+    public static final ModConfigSpec.DoubleValue HUD_SCALE;
+    public static final ModConfigSpec.BooleanValue HUD_BACKGROUND;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> EVENTS;
+    public static final ModConfigSpec.ConfigValue<String> EVENT_MESSAGE_MODE;
+
+    // =========================================================================
     // STATIC INIT
     // =========================================================================
     static {
@@ -78,12 +87,12 @@ public class CalendarConfig {
                 .define("syncDaylightCycle", true);
 
         MINECRAFT_DAY_SYNC = BUILDER
-                .comment("If true, the calendar advances by one day each time a Minecraft day completes (every 24 000 ticks).",
-                        "When enabled:",
-                        "  - Tick-based counting (ticksPerRpMinute / rpMinutesPerHour) is fully disabled.",
-                        "  - doDaylightCycle is automatically managed on pause/resume, regardless of syncDaylightCycle.",
-                        "  - Pausing the calendar (manually or via schedule) freezes both the RP date and the MC day cycle.",
-                        "The hour and minute within the RP day are not driven by this mode, they remain at their last value.")
+                .comment("If true, the calendar follows the Minecraft day cycle.",
+                        "  - The RP hour and minute are read from the Minecraft time of day.",
+                        "  - The RP date advances by one day each time a Minecraft day completes (24 000 ticks).",
+                        "  - Tick-based counting (ticksPerRpMinute) is disabled.",
+                        "  - doDaylightCycle is managed on pause/resume, regardless of syncDaylightCycle.",
+                        "  - /rpimmersion calendar set and advance also move the Minecraft time of day.")
                 .define("minecraftDaySync", true);
 
         BUILDER.pop();
@@ -149,11 +158,13 @@ public class CalendarConfig {
 
         DISPLAY_MODE = BUILDER
                 .comment("Where to show the calendar.",
-                        "HUD        : overlay in corner (requires client-side rendering)",
+                        "HUD        : overlay on screen (see hudPosition, hudScale, hudBackground)",
                         "ACTION_BAR : Minecraft action bar (center bottom)",
                         "BOTH       : both",
-                        "NONE       : hidden (use commands to query)")
-                .define("displayMode", "ACTION_BAR");
+                        "NONE       : hidden (use commands to query)",
+                        "The value is sent by the server to the clients, changes apply after a reload.")
+                .defineInList("displayMode", "ACTION_BAR",
+                        Arrays.asList("HUD", "ACTION_BAR", "BOTH", "NONE"));
 
         DATE_FORMAT = BUILDER
                 .comment("Format of the displayed date.",
@@ -164,6 +175,38 @@ public class CalendarConfig {
         PAUSED_SUFFIX = BUILDER
                 .comment("Suffix appended to the date display when the calendar is paused.")
                 .define("pausedSuffix", " §8(paused)");
+
+        HUD_POSITION = BUILDER
+                .comment("Screen anchor of the HUD calendar.",
+                        "TOP_LEFT, TOP_CENTER, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT")
+                .defineInList("hudPosition", "TOP_LEFT",
+                        Arrays.asList("TOP_LEFT", "TOP_CENTER", "TOP_RIGHT", "BOTTOM_LEFT", "BOTTOM_RIGHT"));
+
+        HUD_SCALE = BUILDER
+                .comment("Text scale of the HUD calendar.")
+                .defineInRange("hudScale", 1.0, 0.5, 3.0);
+
+        HUD_BACKGROUND = BUILDER
+                .comment("Draw a semi-transparent background behind the HUD calendar.")
+                .define("hudBackground", true);
+
+        BUILDER.pop();
+
+        // ── Events ────────────────────────────────────────────────────────────
+        BUILDER.push("Events");
+
+        EVENTS = BUILDER
+                .comment("Messages broadcast to all players when the RP calendar reaches a given date.",
+                        "Format : month;day;message",
+                        "  month, day : 1-based",
+                        "  message    : supports & and § color codes. Placeholders: {year} {monthName} {day}",
+                        "Example: 12;25;&6The winter festival begins today!")
+                .defineList("events", List.of(),
+                        obj -> obj instanceof String s && s.split(";", 3).length == 3);
+
+        EVENT_MESSAGE_MODE = BUILDER
+                .comment("Display mode of the event messages: CHAT, ACTION_BAR, TITLE, IMMERSIVE or IMMERSIVE:presetName.")
+                .define("eventMessageMode", "CHAT");
 
         BUILDER.pop();
 

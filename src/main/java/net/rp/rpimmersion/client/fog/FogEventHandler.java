@@ -35,20 +35,18 @@ public class FogEventHandler {
 
     @SubscribeEvent
     public static void onFogRender(ViewportEvent.RenderFog event) {
-        int flag = renderFlagFor(
-                event.getCamera().getFluidInCamera(),
-                event.getMode()
-        );
+        FogType fluid = event.getCamera().getFluidInCamera();
 
-        boolean applies = shouldApply() && (ClientFogCache.getOverrideFlags() & flag) != 0;
-
-        if (!applies) {
+        if (fluid == FogType.NONE && event.getMode() == FogRenderer.FogMode.FOG_TERRAIN) {
             ClientFogCache.sampleVanillaDistances(
                     event.getNearPlaneDistance(),
                     event.getFarPlaneDistance()
             );
-            return;
         }
+
+        int flag = renderFlagFor(fluid, event.getMode());
+        boolean applies = shouldApply() && (ClientFogCache.getOverrideFlags() & flag) != 0;
+        if (!applies) return;
 
         event.setNearPlaneDistance(ClientFogCache.getCurrentStart());
         event.setFarPlaneDistance(ClientFogCache.getCurrentEnd());

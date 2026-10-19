@@ -48,9 +48,10 @@ displayName="${mod_name}" #mandatory
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Fog control system for RP servers.
-Supports global fog, circular zones, biome-based fog,
-RpEssentials zone integration, and per-player overrides.
+Immersion toolkit for RP servers.
+Server-controlled fog, weather effects, lightning camera shake, RP calendar,
+HUD hiding and first person lock, all configurable by admins and synced to clients.
+Requires RpEssentials.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
@@ -76,7 +77,7 @@ RpEssentials zone integration, and per-player overrides.
 [[dependencies.${mod_id}]]
     modId="rpessentials"
     type="required"
-    versionRange="[4.0.0,)"
+    versionRange="[5.0.0,)"
     ordering="AFTER"
     side="BOTH"
 

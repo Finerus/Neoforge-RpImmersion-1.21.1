@@ -1,5 +1,49 @@
 # Changelog — RpImmersion
 
+## 1.0.1
+
+### Added
+- HUD control: hide any vanilla HUD element for all players, including the F3 debug screen (`rpimmersion-hud.toml`, `/rpimmersion hud`).
+- First person lock (`forceFirstPerson`) and optional staff exemption.
+- Calendar HUD options: position, scale and background, sent by the server.
+- Calendar date events: broadcast a message when a given RP date is reached.
+- Fog per dimension, biome tags (`#minecraft:is_forest`), optional dimension for circular zones.
+- Day/night fog changes now use `dayNightTransitionSeconds`.
+- `/rpimmersion reload` and `/rpimmersion shake`.
+- Server configs reload automatically when the file changes on disk.
+- Client config screen available in Options, Mods.
+- New option `allowClientFogOverride` (the client `disableServerFog` option could never work before).
+
+### Fixed
+- Commands now work from the console, command blocks and rcon.
+- Weather fog was never applied with the default config.
+- `enableFogSystem` and `worldBorderFogPriority` are now honored.
+- `/rpimmersion fog set global` was ignored inside zones and biomes.
+- An unknown preset name no longer blocks lower priority fog layers, a warning is logged instead.
+- RpEssentials zone overrides now respect their priority and the zone dimension.
+- Fog flash at login, and wrong target value at the end of a fog transition.
+- Lightning camera shake only triggered when an entity was hit, once per entity, in every dimension.
+- `lightningFrequencyMultiplier` below 1.0 now reduces lightning.
+- Rain effects no longer apply in other dimensions, nor to spectators.
+- Weather cycle: first step applied at start, step duration respected, rain no longer stuck on clients after a clear step.
+- Calendar `set` and `advance` were overwritten in Minecraft day sync mode.
+- Calendar paused whenever the RpEssentials schedule hours were closed, even with the schedule disabled.
+- Calendar display mode was read from a client copy of the server config, it is now sent by the server.
+- Calendar action bar no longer overrides action bar messages from other systems.
+- Calendar `set` validates the date, and a huge year no longer freezes the server.
+- Calendar file is saved atomically and synchronously on shutdown.
+- Messages: `&` no longer eats the next character, `TITLE` and `IMMERSIVE:presetName` modes are supported.
+- Event handlers and commands were registered twice.
+
+### Changed
+- Network protocol version bumped to 2: update the server and the clients together.
+- `displayMode` is validated (`HUD`, `ACTION_BAR`, `BOTH`, `NONE`).
+- **RpEssentials** is now required with the **5.0.0** version (and higher).
+
+### Personal notes
+Hi, long time no see here, isn't it? This is just little update to add and fix things.
+I plan to add more things now that RpEssentials is almost done. See you soon!
+
 ## [1.0.0]
 
 1st Release, not in beta anymore!

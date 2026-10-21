@@ -179,7 +179,11 @@ public class FogConfig {
                                 "cursed_forest;0.1;0.05;0.0;3.0;15.0;4.0",
                                 "purge;0.3;0.0;0.0;1.0;10.0;2.0",
                                 "thick_swamp;0.2;0.25;0.15;1.0;12.0;6.0",
-                                "border_void;0.0;0.0;0.0;1.0;8.0;2.0;ALL"
+                                "border_void;0.0;0.0;0.0;1.0;8.0;2.0;ALL",
+                                "blood_sky;0.35;0.02;0.02;8.0;60.0;6.0",
+                                "green_sky;0.25;0.38;0.2;10.0;70.0;6.0",
+                                "ash_fall;0.35;0.33;0.32;6.0;40.0;6.0",
+                                "dense_fog;0.75;0.78;0.8;2.0;18.0;8.0"
                         ),
                         obj -> obj instanceof String s && s.split(";").length >= 7
                 );

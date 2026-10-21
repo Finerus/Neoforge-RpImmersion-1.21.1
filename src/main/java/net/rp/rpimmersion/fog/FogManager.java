@@ -62,6 +62,7 @@ public class FogManager {
 
     private final Map<UUID, String> playerOverrides  = new HashMap<>();
     private String globalCommandOverride             = null;
+    private String eventFogPreset = null;
 
     /** Dernier preset résolu envoyé par joueur — évite les doublons. */
     private final Map<UUID, FogSyncPacket> lastSentPacket = new HashMap<>();
@@ -133,6 +134,12 @@ public class FogManager {
         warnUnknown("global fog", FogConfig.GLOBAL_FOG_PRESET.get(),
                 FogConfig.GLOBAL_FOG_DAY_PRESET.get(), FogConfig.GLOBAL_FOG_NIGHT_PRESET.get());
         warnUnknown("world border fog", FogConfig.WORLD_BORDER_FOG_PRESET.get());
+        try {
+            for (String raw : net.rp.rpimmersion.config.EventsConfig.EVENTS.get()) {
+                String[] p = raw.split(";");
+                if (p.length > 2) warnUnknown("event " + p[0].trim(), p[2].trim());
+            }
+        } catch (IllegalStateException ignored) {}
     }
 
     private void warnUnknown(String source, String... names) {
@@ -156,6 +163,9 @@ public class FogManager {
 
         FogSyncPacket border = resolveWorldBorder(player);
         if (border != null) return border;
+
+        FogSyncPacket event = buildPacket(eventFogPreset);
+        if (event != null) return event;
 
         boolean isDaytime = isDaytime(player);
         if (getZonePriority()) {
@@ -384,8 +394,8 @@ public class FogManager {
     // =========================================================================
     // COMMANDES STAFF
     // =========================================================================
-
     public void setGlobalOverride(String presetName) { this.globalCommandOverride = presetName; }
+    public void setEventFog(String presetName) { this.eventFogPreset = presetName; }
     public void setPlayerOverride(UUID uuid, String presetName) {
         if (presetName == null) playerOverrides.remove(uuid);
         else playerOverrides.put(uuid, presetName);

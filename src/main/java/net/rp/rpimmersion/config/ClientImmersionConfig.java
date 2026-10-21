@@ -25,6 +25,7 @@ public class ClientImmersionConfig {
     // =========================================================================
     /** Si true, le client peut ignorer le fog du serveur. */
     public static final ModConfigSpec.BooleanValue DISABLE_SERVER_FOG;
+    public static final ModConfigSpec.DoubleValue EFFECTS_INTENSITY_MULTIPLIER;
 
     // =========================================================================
     // STATIC INIT
@@ -50,6 +51,16 @@ public class ClientImmersionConfig {
                 .comment("Disable all server-controlled fog effects for this client.",
                         "Only takes effect if the server allows client override.")
                 .define("disableServerFog", false);
+
+        BUILDER.pop();
+
+        BUILDER.push("Effects");
+
+        EFFECTS_INTENSITY_MULTIPLIER = BUILDER
+                .comment("Multiplier for camera movement and screen overlays (low health, fatigue, temperature, events).",
+                        "1.0 = server value, 0.0 = disabled. Useful against motion sickness.",
+                        "Only takes effect if the server allows client override.")
+                .defineInRange("effectsIntensityMultiplier", 1.0, 0.0, 1.0);
 
         BUILDER.pop();
 

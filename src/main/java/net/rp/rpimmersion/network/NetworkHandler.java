@@ -12,7 +12,7 @@ public class NetworkHandler {
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar reg = event.registrar("2");
+        PayloadRegistrar reg = event.registrar("3");
 
         reg.playToClient(
                 FogSyncPacket.TYPE,
@@ -33,6 +33,31 @@ public class NetworkHandler {
                 ClientSettingsPacket.TYPE,
                 ClientSettingsPacket.STREAM_CODEC,
                 new DirectionalPayloadHandler<>(ClientSettingsPacket::handleOnClient, null)
+        );
+        reg.playToClient(
+                EffectsSyncPacket.TYPE,
+                EffectsSyncPacket.STREAM_CODEC,
+                new DirectionalPayloadHandler<>(EffectsSyncPacket::handleOnClient, null)
+        );
+        reg.playToClient(
+                StateSyncPacket.TYPE,
+                StateSyncPacket.STREAM_CODEC,
+                new DirectionalPayloadHandler<>(StateSyncPacket::handleOnClient, null)
+        );
+        reg.playToClient(
+                RespawnFadePacket.TYPE,
+                RespawnFadePacket.STREAM_CODEC,
+                new DirectionalPayloadHandler<>(RespawnFadePacket::handleOnClient, null)
+        );
+        reg.playToClient(
+                BreathPacket.TYPE,
+                BreathPacket.STREAM_CODEC,
+                new DirectionalPayloadHandler<>(BreathPacket::handleOnClient, null)
+        );
+        reg.playToClient(
+                EventSyncPacket.TYPE,
+                EventSyncPacket.STREAM_CODEC,
+                new DirectionalPayloadHandler<>(EventSyncPacket::handleOnClient, null)
         );
     }
 }

@@ -34,6 +34,8 @@ public class ImmersionCommands {
         WeatherCommands.register(dispatcher, built);
         CalendarCommands.register(dispatcher, built);
         HudCommands.register(dispatcher, built);
+        EffectsCommands.register(dispatcher, built);
+        EventCommands.register(dispatcher, built);
 
         // /rpimmersion reload
         built.addChild(Commands.literal("reload").executes(ctx -> {

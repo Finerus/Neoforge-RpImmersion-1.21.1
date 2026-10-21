@@ -1,5 +1,49 @@
 # Changelog — RpImmersion
 
+## [1.1.0] RpImmersion 
+
+Requires RpEssentials 5.0.1 or newer.
+
+### Added
+
+**Atmospheric events (rpimmersion-events.toml):**
+* Events are defined in one line each: duration, fog preset, forced weather, screen tint, darkness overlay, fade time, camera shake, ambient particle, start and end messages.
+* Five default events: bloodmoon, storm_omen, ash_rain, dense_fog, silent_sky.
+* Staff commands: `/rpimmersion event start <id> [minutes]`, `stop`, `status`, `list`, `reload`.
+* Optional random events (disabled by default): chance rolled once per real minute, restricted to day, night or any time, with a configurable cooldown between events.
+* Event fog takes priority over zones, biomes, global and weather fog.
+* Four new default fog presets used by the events: blood_sky, green_sky, ash_fall, dense_fog. Existing rpimmersion-fog.toml files keep their old defaults, add these presets by hand.
+
+**Player states (rpimmersion-effects.toml):**
+* Temperature: cold biomes tint the screen, narrow the field of view, make hands shiver and show breath clouds. Hot biomes add a warm tint and a slow sway.
+* Low health: red pulsing vignette, breathing camera and a speed reduction that grows as health drops.
+* Fatigue: builds up when a player stays awake too long (vanilla time since last rest). Dark vignette, slower movement, reduced damage and occasional micro sleeps.
+* Respawn: players wake up immobile with a fade in from black, then weakened for a configurable time.
+* Exertion: long sprints and sprint jumps build exhaustion, with visible breath (also for nearby players), then slowness and weakness. Raise `jumpExertion` to punish bunny hopping harder.
+* Micro animations: stumbling on soft blocks (snow, mud, configurable list) and a damped camera impact after a fall.
+* Slowness and weakness use transient attribute modifiers, so they are never saved with the player.
+* Staff commands: `/rpimmersion effects status`, `reload`, `enable <true|false>`, `particles <true|false>`, `reset <player>`.
+
+### Potion particles
+* New option `hidePotionParticles` hides the particles of every potion effect for everyone, to avoid HRP caused by visible effects. Applies as effects are applied or refreshed.
+
+### Config Manager integration
+* RpImmersion adds 6 purple tabs to the RpEssentials Config Manager GUI: Fog, Weather, Calendar, HUD, Effects and Events.
+* Changes applied from the GUI run the same reload as `/rpimmersion reload`, so the managers are reloaded and every player is re-synced.
+
+### Client options
+* New client option `effectsIntensityMultiplier` (0.0 to 1.0) scales camera movement and screen overlays, useful against motion sickness. Only active if the server allows it with `allowClientEffectsOverride`.
+
+###  Changed
+* Screen overlays are blended in priority order: low health dims the temperature tints, and the red and dark vignettes are merged into a single one.
+* Camera effects are additive, like the lightning shake, so they stack with other camera mods.
+* RpEssentials dependency raised to 5.0.1.
+* `/rpimmersion reload` and config file changes now also reload the events and re-sync the effects settings.
+
+### Known limitations
+* Real desaturation and heat haze need a post processing shader, they are approximated with tints and a slight camera roll.
+* Shader packs (Iris, Oculus) do not affect server fog, as before.
+
 ## 1.0.1
 
 ### Added

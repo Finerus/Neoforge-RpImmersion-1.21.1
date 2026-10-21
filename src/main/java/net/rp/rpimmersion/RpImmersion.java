@@ -35,6 +35,8 @@ public class RpImmersion {
         modContainer.registerConfig(ModConfig.Type.SERVER, WeatherConfig.SPEC,  "rpimmersion/rpimmersion-weather.toml");
         modContainer.registerConfig(ModConfig.Type.SERVER, CalendarConfig.SPEC, "rpimmersion/rpimmersion-calendar.toml");
         modContainer.registerConfig(ModConfig.Type.SERVER, HudConfig.SPEC,      "rpimmersion/rpimmersion-hud.toml");
+        modContainer.registerConfig(ModConfig.Type.SERVER, EffectsConfig.SPEC,  "rpimmersion/rpimmersion-effects.toml");
+        modContainer.registerConfig(ModConfig.Type.SERVER, EventsConfig.SPEC,   "rpimmersion/rpimmersion-events.toml");
 
         // Client config
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientImmersionConfig.SPEC, "rpimmersion-client.toml");
@@ -43,6 +45,7 @@ public class RpImmersion {
         modEventBus.register(net.rp.rpimmersion.network.NetworkHandler.class);
         modEventBus.addListener(RpImmersion::onConfigReloading);
 
+        // Client-only setup
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientSetup.init(modEventBus, modContainer);
         }
@@ -51,6 +54,18 @@ public class RpImmersion {
         NeoForge.EVENT_BUS.register(new FogServerEventHandler());
         NeoForge.EVENT_BUS.register(new WeatherServerEventHandler());
         NeoForge.EVENT_BUS.register(new CalendarServerEventHandler());
+        NeoForge.EVENT_BUS.register(new EffectsServerEventHandler());
+        NeoForge.EVENT_BUS.register(new EventServerEventHandler());
+
+        // Commands
+        NeoForge.EVENT_BUS.register(ImmersionCommands.class);
+
+        // Onglets du Config Manager de RpEssentials
+        try {
+            net.rp.rpimmersion.compat.ConfigGuiCompat.register();
+        } catch (LinkageError e) {
+            LOGGER.warn("[RPImmersion] Config GUI integration unavailable: {}", e.getMessage());
+        }
 
         LOGGER.info("[RPImmersion] Mod initialized.");
     }

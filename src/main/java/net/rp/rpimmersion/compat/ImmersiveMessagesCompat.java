@@ -32,7 +32,7 @@ public class ImmersiveMessagesCompat {
      */
     public static void sendMessage(ServerPlayer player, String rawMessage, String mode) {
         try {
-            net.rp.rpessentials.ImmersivePresetHelper.send(player, rawMessage, mode);
+            net.rp.rpessentials.util.ImmersivePresetHelper.send(player, rawMessage, mode);
             return;
         } catch (RuntimeException | LinkageError ignored) {}
 

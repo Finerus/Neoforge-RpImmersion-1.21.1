@@ -1,5 +1,19 @@
 # Changelog — RpImmersion
 
+## [Unreleased]
+
+Requires RpEssentials 6.0.0 or newer.
+
+### Fixed
+
+* **Compatibility with RpEssentials 6.0.0:** RpImmersion called RpEssentials classes that moved in 6.0.0 (staff check, schedule state, message display), which broke the mod. The staff check now goes through the public RpEssentials API, which does not move between versions.
+* **`/rpimmersion calendar` and `/rpimmersion weather`** can be used from the console and command blocks (OP level 2), like the other RpImmersion commands.
+
+### Improved
+
+* **Config Manager:** the RpImmersion files have their own purple "RpImmersion" group (Fog, Weather, Calendar, HUD, Effects, Events) instead of the "Other" group.
+* **Options that accept only some words** (`displayMode`, `hudPosition`, `eventMessageMode` of the calendar and of the events, `weatherMessageMode`): a typo written in the file is kept instead of being replaced, the default value is used meanwhile, the line is red in the Config Manager, and staff are told in the chat, like the RpEssentials options. The message modes accept `TITLE` and `IMMERSIVE:<preset>` (now listed in the comments).
+
 ## [1.1.0] RpImmersion 
 
 Requires RpEssentials 5.0.1 or newer.

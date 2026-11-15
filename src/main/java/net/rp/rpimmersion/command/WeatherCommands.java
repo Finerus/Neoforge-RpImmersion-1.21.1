@@ -15,7 +15,7 @@ public class WeatherCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
                                 com.mojang.brigadier.tree.LiteralCommandNode<CommandSourceStack> root) {
         var node = Commands.literal("weather")
-                .requires(src -> net.rp.rpessentials.RpEssentialsPermissions.isStaff(src.getPlayer()));
+                .requires(net.rp.rpimmersion.compat.StaffChecker::isStaffSource);
 
         node.then(Commands.literal("set")
                 .then(Commands.argument("type", StringArgumentType.word())

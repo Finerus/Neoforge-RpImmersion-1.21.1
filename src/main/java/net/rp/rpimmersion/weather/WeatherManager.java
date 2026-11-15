@@ -140,7 +140,7 @@ public class WeatherManager {
                 case RAIN    -> WeatherConfig.MSG_WEATHER_RAIN.get();
                 case THUNDER -> WeatherConfig.MSG_WEATHER_THUNDER.get();
             };
-            String mode = WeatherConfig.WEATHER_MESSAGE_MODE.get();
+            String mode = net.rp.rpessentials.config.ConfigRules.value(WeatherConfig.WEATHER_MESSAGE_MODE);
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
                 ImmersiveMessagesCompat.sendMessage(p, msg, mode);
             }
@@ -181,7 +181,7 @@ public class WeatherManager {
         applyWeather(overworld, step.weather(), step.durationMinutes() * 1200);
         if (!announce || step.message().isEmpty()) return;
         try {
-            String mode = WeatherConfig.WEATHER_MESSAGE_MODE.get();
+            String mode = net.rp.rpessentials.config.ConfigRules.value(WeatherConfig.WEATHER_MESSAGE_MODE);
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
                 ImmersiveMessagesCompat.sendMessage(p, step.message(), mode);
             }

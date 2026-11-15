@@ -178,7 +178,7 @@ public class CalendarManager {
             lastEventKey = key;
             if (firstCheck || events.isEmpty()) return;
 
-            String mode = CalendarConfig.EVENT_MESSAGE_MODE.get();
+            String mode = net.rp.rpessentials.config.ConfigRules.value(CalendarConfig.EVENT_MESSAGE_MODE);
             for (String raw : events) {
                 String[] p = raw.split(";", 3);
                 if (p.length < 3) continue;
@@ -315,8 +315,8 @@ public class CalendarManager {
         boolean background = true;
         try {
             enabled    = CalendarConfig.ENABLE_CALENDAR.get();
-            mode       = CalendarConfig.DISPLAY_MODE.get().toUpperCase();
-            position   = CalendarConfig.HUD_POSITION.get();
+            mode       = net.rp.rpessentials.config.ConfigRules.value(CalendarConfig.DISPLAY_MODE).toUpperCase();
+            position   = net.rp.rpessentials.config.ConfigRules.value(CalendarConfig.HUD_POSITION);
             scale      = CalendarConfig.HUD_SCALE.get().floatValue();
             background = CalendarConfig.HUD_BACKGROUND.get();
         } catch (IllegalStateException ignored) {}
@@ -414,7 +414,7 @@ public class CalendarManager {
 
         boolean serverOpen = true;
         try {
-            serverOpen = net.rp.rpessentials.RpEssentialsScheduleManager.isServerOpen();
+            serverOpen = net.rp.rpessentials.gameplay.RpEssentialsScheduleManager.isServerOpen();
         } catch (Exception | LinkageError ignored) {}
 
         boolean shouldPause = !serverOpen;

@@ -163,8 +163,8 @@ public class CalendarConfig {
                         "BOTH       : both",
                         "NONE       : hidden (use commands to query)",
                         "The value is sent by the server to the clients, changes apply after a reload.")
-                .defineInList("displayMode", "ACTION_BAR",
-                        Arrays.asList("HUD", "ACTION_BAR", "BOTH", "NONE"));
+                .define("displayMode", "ACTION_BAR");
+        net.rp.rpessentials.config.ConfigRules.oneOf(DISPLAY_MODE, Arrays.asList("HUD", "ACTION_BAR", "BOTH", "NONE"));
 
         DATE_FORMAT = BUILDER
                 .comment("Format of the displayed date.",
@@ -179,8 +179,8 @@ public class CalendarConfig {
         HUD_POSITION = BUILDER
                 .comment("Screen anchor of the HUD calendar.",
                         "TOP_LEFT, TOP_CENTER, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT")
-                .defineInList("hudPosition", "TOP_LEFT",
-                        Arrays.asList("TOP_LEFT", "TOP_CENTER", "TOP_RIGHT", "BOTTOM_LEFT", "BOTTOM_RIGHT"));
+                .define("hudPosition", "TOP_LEFT");
+        net.rp.rpessentials.config.ConfigRules.oneOf(HUD_POSITION, Arrays.asList("TOP_LEFT", "TOP_CENTER", "TOP_RIGHT", "BOTTOM_LEFT", "BOTTOM_RIGHT"));
 
         HUD_SCALE = BUILDER
                 .comment("Text scale of the HUD calendar.")
@@ -207,6 +207,7 @@ public class CalendarConfig {
         EVENT_MESSAGE_MODE = BUILDER
                 .comment("Display mode of the event messages: CHAT, ACTION_BAR, TITLE, IMMERSIVE or IMMERSIVE:presetName.")
                 .define("eventMessageMode", "CHAT");
+        net.rp.rpessentials.config.ConfigRules.displayMode(EVENT_MESSAGE_MODE);
 
         BUILDER.pop();
 

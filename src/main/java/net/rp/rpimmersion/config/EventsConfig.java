@@ -25,8 +25,9 @@ public class EventsConfig {
                 .define("enableEvents", true);
 
         EVENT_MESSAGE_MODE = BUILDER
-                .comment("Display mode for event messages: CHAT, ACTION_BAR, IMMERSIVE.")
+                .comment("Display mode for event messages: CHAT, ACTION_BAR, TITLE, IMMERSIVE or IMMERSIVE:presetName.")
                 .define("eventMessageMode", "ACTION_BAR");
+        net.rp.rpessentials.config.ConfigRules.displayMode(EVENT_MESSAGE_MODE);
 
         BUILDER.pop();
 

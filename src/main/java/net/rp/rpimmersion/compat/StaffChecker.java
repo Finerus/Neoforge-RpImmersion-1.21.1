@@ -4,12 +4,9 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Wrapper autour de RpEssentialsPermissions.isStaff().
- *
- * En DEV : RpEssentials absent → tous les joueurs sont staff (false en prod).
- * En PROD : le jar RpEssentials est dans mods/ → la vraie vérification s'exécute.
- *
- * Ceci évite de devoir ajouter le jar en compileOnly dans le build.gradle.
+ * Staff check through the public RpEssentials API ({@code RpEssentialsAPI.isStaff}: roles with isStaff,
+ * or the opLevelBypass OP level). The API package does not move between RpEssentials versions.
+ * Falls back to OP level 2 if RpEssentials cannot be reached.
  */
 public class StaffChecker {
 
@@ -18,7 +15,7 @@ public class StaffChecker {
     static {
         boolean found = false;
         try {
-            Class.forName("net.rp.rpessentials.RpEssentialsPermissions");
+            Class.forName("net.rp.rpessentials.api.RpEssentialsAPI");
             found = true;
         } catch (ClassNotFoundException ignored) {}
         RPE_AVAILABLE = found;
@@ -28,7 +25,7 @@ public class StaffChecker {
         if (player == null) return false;
         if (RPE_AVAILABLE) {
             try {
-                return net.rp.rpessentials.RpEssentialsPermissions.isStaff(player);
+                return net.rp.rpessentials.api.RpEssentialsAPI.isStaff(player);
             } catch (Exception | LinkageError e) {
                 return player.hasPermissions(2);
             }
@@ -36,6 +33,7 @@ public class StaffChecker {
         return player.hasPermissions(2);
     }
 
+    /** Players: {@link #isStaff}. Console and command blocks: OP level 2. */
     public static boolean isStaffSource(CommandSourceStack src) {
         if (src.getEntity() instanceof ServerPlayer player) return isStaff(player);
         return src.hasPermission(2);

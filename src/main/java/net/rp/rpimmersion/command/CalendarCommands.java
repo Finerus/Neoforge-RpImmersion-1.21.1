@@ -13,7 +13,7 @@ public class CalendarCommands {
     public static void register(com.mojang.brigadier.CommandDispatcher<CommandSourceStack> dispatcher,
                                 com.mojang.brigadier.tree.LiteralCommandNode<CommandSourceStack> root) {
         var node = Commands.literal("calendar")
-                .requires(src -> net.rp.rpessentials.RpEssentialsPermissions.isStaff(src.getPlayer()));
+                .requires(net.rp.rpimmersion.compat.StaffChecker::isStaffSource);
 
         node.then(Commands.literal("status").executes(ctx -> {
             CalendarManager cm = CalendarManager.get();

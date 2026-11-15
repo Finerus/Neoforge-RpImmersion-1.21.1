@@ -198,8 +198,9 @@ public class WeatherConfig {
                 .define("msgWeatherThunder", "§8A storm is coming...");
 
         WEATHER_MESSAGE_MODE = BUILDER
-                .comment("Display mode for weather messages: CHAT, ACTION_BAR, IMMERSIVE.")
+                .comment("Display mode for weather messages: CHAT, ACTION_BAR, TITLE, IMMERSIVE or IMMERSIVE:presetName.")
                 .define("weatherMessageMode", "CHAT");
+        net.rp.rpessentials.config.ConfigRules.displayMode(WEATHER_MESSAGE_MODE);
 
         BUILDER.pop();
 

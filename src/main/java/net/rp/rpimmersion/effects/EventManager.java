@@ -123,8 +123,8 @@ public class EventManager {
 
     private static void announce(MinecraftServer server, String msg) {
         if (msg.isEmpty()) return;
-        String mode = "ACTION_BAR";
-        try { mode = EventsConfig.EVENT_MESSAGE_MODE.get(); } catch (IllegalStateException ignored) {}
+        // Default value while the config is not loaded or holds a typo.
+        String mode = net.rp.rpessentials.config.ConfigRules.value(EventsConfig.EVENT_MESSAGE_MODE);
         for (ServerPlayer p : server.getPlayerList().getPlayers()) ImmersiveMessagesCompat.sendMessage(p, msg, mode);
     }
 

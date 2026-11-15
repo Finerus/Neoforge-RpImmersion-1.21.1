@@ -1,6 +1,6 @@
 # Changelog — RpImmersion
 
-## [Unreleased]
+## [1.1.1] RpImmersion
 
 Requires RpEssentials 6.0.0 or newer.
 
